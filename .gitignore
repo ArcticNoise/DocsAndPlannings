@@ -1,0 +1,37 @@
+# C++ artifacts
+build/
+build-*/
+cmake-build-*/
+*.o
+*.obj
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# C# artifacts
+bin/
+obj/
+nupkg/
+*.user
+*.suo
+.vs/
+*.DotSettings.user
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+test_results.txt
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# MCP and local config (keep .mcp.json for project config)
+.claude/settings.local.json
