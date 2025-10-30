@@ -35,7 +35,9 @@ public class AuthenticationService : IAuthenticationService
     {
         Debug.Assert(request != null, "Register request cannot be null");
 
-        bool emailExists = await _context.Users.AnyAsync(u => u.Email == request.Email);
+        string normalizedEmail = request.Email.ToLowerInvariant();
+
+        bool emailExists = await _context.Users.AnyAsync(u => u.Email.ToLower() == normalizedEmail);
         if (emailExists)
         {
             throw new InvalidOperationException($"User with email '{request.Email}' already exists");
@@ -45,7 +47,7 @@ public class AuthenticationService : IAuthenticationService
 
         User user = new User
         {
-            Email = request.Email,
+            Email = normalizedEmail,
             PasswordHash = passwordHash,
             FirstName = request.FirstName,
             LastName = request.LastName,
@@ -82,10 +84,12 @@ public class AuthenticationService : IAuthenticationService
     {
         Debug.Assert(request != null, "Login request cannot be null");
 
+        string normalizedEmail = request.Email.ToLowerInvariant();
+
         User? user = await _context.Users
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
-            .FirstOrDefaultAsync(u => u.Email == request.Email);
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
 
         if (user == null)
         {

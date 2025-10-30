@@ -14,10 +14,20 @@ public class JwtTokenService : IJwtTokenService
 
     public JwtTokenService(JwtSettings jwtSettings)
     {
-        Debug.Assert(jwtSettings != null, "JWT settings cannot be null");
-        Debug.Assert(!string.IsNullOrEmpty(jwtSettings.Secret), "JWT secret cannot be null or empty");
-        Debug.Assert(!string.IsNullOrEmpty(jwtSettings.Issuer), "JWT issuer cannot be null or empty");
-        Debug.Assert(!string.IsNullOrEmpty(jwtSettings.Audience), "JWT audience cannot be null or empty");
+        if (jwtSettings == null)
+            throw new ArgumentNullException(nameof(jwtSettings));
+
+        if (string.IsNullOrEmpty(jwtSettings.Secret))
+            throw new ArgumentException("JWT secret cannot be null or empty", nameof(jwtSettings));
+
+        if (jwtSettings.Secret.Length < 32)
+            throw new ArgumentException("JWT secret must be at least 32 characters (256 bits)", nameof(jwtSettings));
+
+        if (string.IsNullOrEmpty(jwtSettings.Issuer))
+            throw new ArgumentException("JWT issuer cannot be null or empty", nameof(jwtSettings));
+
+        if (string.IsNullOrEmpty(jwtSettings.Audience))
+            throw new ArgumentException("JWT audience cannot be null or empty", nameof(jwtSettings));
 
         _jwtSettings = jwtSettings;
     }
@@ -46,6 +56,7 @@ public class JwtTokenService : IJwtTokenService
             issuer: _jwtSettings.Issuer,
             audience: _jwtSettings.Audience,
             claims: claims,
+            notBefore: DateTime.UtcNow,
             expires: DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationMinutes),
             signingCredentials: credentials
         );

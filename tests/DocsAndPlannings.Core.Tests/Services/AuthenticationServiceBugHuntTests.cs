@@ -69,18 +69,13 @@ public class AuthenticationServiceBugHuntTests : IDisposable
             LastName = "Smith"
         };
 
-        Exception? exception = await Record.ExceptionAsync(
+        // After fix: Should throw InvalidOperationException for duplicate email (case-insensitive)
+        await Assert.ThrowsAsync<InvalidOperationException>(
             async () => await _authenticationService.RegisterAsync(request2));
 
-        if (exception == null)
-        {
-            int userCount = await _context.Users.CountAsync();
-            Assert.Equal(2, userCount);
-        }
-        else
-        {
-            Assert.IsType<InvalidOperationException>(exception);
-        }
+        // Verify only one user was created
+        int userCount = await _context.Users.CountAsync();
+        Assert.Equal(1, userCount);
     }
 
     [Fact]
@@ -108,13 +103,12 @@ public class AuthenticationServiceBugHuntTests : IDisposable
             Password = password
         };
 
-        Exception? exception = await Record.ExceptionAsync(
-            async () => await _authenticationService.LoginAsync(requestUpperCase));
+        // After fix: Login should succeed with mixed-case email (case-insensitive)
+        AuthResponse response = await _authenticationService.LoginAsync(requestUpperCase);
 
-        if (exception != null)
-        {
-            Assert.IsType<UnauthorizedAccessException>(exception);
-        }
+        Assert.NotNull(response);
+        Assert.NotNull(response.Token);
+        Assert.Equal(user.Email, response.User.Email);
     }
 
     [Fact]
