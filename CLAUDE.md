@@ -88,6 +88,19 @@ The agent must **never** commit code unless all commands above succeed locally �
 20. **Never commit screenshots to repo. It should only be stored locally** 🔒  
 21. **At the end of any task report which skills you used and where** 🔒  
 22. **Always ensure that all changes are not breaking any of the request sections and 100% fullfills to its requirements 🔒
+23. **For specific tasks use specific related skills:**  🔒  
+    1. For writing a documentation use api-docs-writer-SKILL
+    2. For testing after code development and review finished use bug-hunter-tester-SKILL
+    3. For code review after code is written use code-review-task-creator-SKILL
+    4. For git work before, during and after finishing task use git-workflow-SKILL
+    5. To write C++ code use cpp-SKILL
+    6. To write C# code use csharp-SKILL
+    7. To do the task planning based on architecture and similar tasks use dev-plan-manager-SKILL
+    8. After each planning use dev-plan-validator-SKILL to validate the planning
+    9.When you need to check performance or have any questions related to it use performance-benchmark-specialist-SKILL
+    10.For architecture planing and solution choices use solution-architect-SKILL
+    11.To test code in browser use playwright-skill
+
 ---
 
 ## 4. Pull-request checklist
