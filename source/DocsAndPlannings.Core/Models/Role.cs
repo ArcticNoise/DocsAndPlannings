@@ -2,21 +2,15 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DocsAndPlannings.Core.Models;
 
-public class User
+public class Role
 {
     public int Id { get; set; }
 
-    [MaxLength(256)]
-    [EmailAddress]
-    public required string Email { get; set; }
+    [MaxLength(50)]
+    public required string Name { get; set; }
 
-    public required string PasswordHash { get; set; }
-
-    [MaxLength(100)]
-    public required string FirstName { get; set; }
-
-    [MaxLength(100)]
-    public required string LastName { get; set; }
+    [MaxLength(200)]
+    public string? Description { get; set; }
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

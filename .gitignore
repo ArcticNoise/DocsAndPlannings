@@ -24,6 +24,11 @@ TestResults/
 *.coveragexml
 test_results.txt
 
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
 # IDE files
 .vscode/
 .idea/
