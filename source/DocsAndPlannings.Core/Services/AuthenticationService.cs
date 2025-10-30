@@ -37,7 +37,8 @@ public class AuthenticationService : IAuthenticationService
 
         string normalizedEmail = request.Email.ToLowerInvariant();
 
-        bool emailExists = await _context.Users.AnyAsync(u => u.Email.ToLower() == normalizedEmail);
+        // Email is stored normalized (lowercase), so direct comparison is sufficient
+        bool emailExists = await _context.Users.AnyAsync(u => u.Email == normalizedEmail);
         if (emailExists)
         {
             throw new InvalidOperationException($"User with email '{request.Email}' already exists");
@@ -86,10 +87,11 @@ public class AuthenticationService : IAuthenticationService
 
         string normalizedEmail = request.Email.ToLowerInvariant();
 
+        // Email is stored normalized (lowercase), so direct comparison is sufficient
         User? user = await _context.Users
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
-            .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
+            .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
         if (user == null)
         {

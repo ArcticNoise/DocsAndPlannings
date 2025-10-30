@@ -173,13 +173,66 @@ var result = (from item in items
 - **Interpolation**: Use for readable expressions
 - **Concatenation**: Use `+` for exactly two strings
 - **StringBuilder**: Use for many concatenations or loops
+- **String Comparison**: 🔒 NEVER use `ToLower()`/`ToUpper()` with `==` for comparison
+
+#### String Comparison Rules 🔒
+**Always use explicit `StringComparison` parameter:**
 
 ```csharp
-// ✅ GOOD
+// ✅ GOOD - Case-insensitive comparison
+if (string.Equals(email1, email2, StringComparison.OrdinalIgnoreCase))
+{
+    // ...
+}
+
+// ✅ GOOD - Case-sensitive comparison
+if (string.Equals(password, hashedPassword, StringComparison.Ordinal))
+{
+    // ...
+}
+
+// ✅ GOOD - For collections/LINQ
+var user = users.FirstOrDefault(u =>
+    string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase));
+
+// ✅ GOOD - Using StringComparer
+var emailComparer = StringComparer.OrdinalIgnoreCase;
+if (emailComparer.Equals(email1, email2))
+{
+    // ...
+}
+
+// ❌ BAD - ToLower with == (inefficient, culture-dependent)
+if (email1.ToLower() == email2.ToLower())  // DON'T DO THIS
+{
+    // ...
+}
+
+// ❌ BAD - Using == directly (case-sensitive, unclear intent)
+if (email1 == email2)  // Unclear if case matters
+{
+    // ...
+}
+```
+
+**Common `StringComparison` values:**
+- `Ordinal` - Case-sensitive, culture-invariant (fastest, use for identifiers)
+- `OrdinalIgnoreCase` - Case-insensitive, culture-invariant (use for emails, usernames, file paths)
+- `CurrentCulture` - Culture-aware, case-sensitive (rare, only for UI display)
+- `InvariantCulture` - Culture-invariant but slower than Ordinal (use when sorting matters)
+
+**When to use each:**
+- **Ordinal**: API tokens, passwords (hashed), IDs, XML/JSON keys
+- **OrdinalIgnoreCase**: Emails, usernames, file paths, URLs, database keys
+- **CurrentCulture**: User-facing text sorting/comparison
+- **InvariantCulture**: Persistent data that needs culture-independent sorting
+
+```csharp
+// ✅ GOOD - General formatting and concatenation
 string message = $"User {userName} logged in at {timestamp}";
 string path = basePath + fileName;
 
-// ✅ GOOD for many strings
+// ✅ GOOD - Many concatenations
 var builder = new StringBuilder();
 foreach (var item in items)
 {
