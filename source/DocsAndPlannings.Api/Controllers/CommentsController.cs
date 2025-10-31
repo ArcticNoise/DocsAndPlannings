@@ -1,0 +1,68 @@
+using System.Security.Claims;
+using DocsAndPlannings.Core.DTOs.Comments;
+using DocsAndPlannings.Core.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DocsAndPlannings.Api.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public sealed class CommentsController : ControllerBase
+{
+    private readonly ICommentService m_CommentService;
+
+    public CommentsController(ICommentService commentService)
+    {
+        m_CommentService = commentService ?? throw new ArgumentNullException(nameof(commentService));
+    }
+
+    private int GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.Parse(userIdClaim!);
+    }
+
+    [HttpPost("workitem/{workItemId}")]
+    public async Task<ActionResult<CommentDto>> CreateComment(int workItemId, [FromBody] CreateCommentRequest request)
+    {
+        var userId = GetCurrentUserId();
+        var comment = await m_CommentService.CreateCommentAsync(workItemId, request, userId);
+        return CreatedAtAction(nameof(GetComment), new { id = comment.Id }, comment);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<ActionResult<CommentDto>> GetComment(int id)
+    {
+        var comment = await m_CommentService.GetCommentByIdAsync(id);
+        if (comment is null)
+        {
+            return NotFound();
+        }
+        return Ok(comment);
+    }
+
+    [HttpGet("workitem/{workItemId}")]
+    public async Task<ActionResult<IReadOnlyList<CommentDto>>> GetCommentsByWorkItem(int workItemId)
+    {
+        var comments = await m_CommentService.GetCommentsByWorkItemIdAsync(workItemId);
+        return Ok(comments);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<ActionResult<CommentDto>> UpdateComment(int id, [FromBody] UpdateCommentRequest request)
+    {
+        var userId = GetCurrentUserId();
+        var comment = await m_CommentService.UpdateCommentAsync(id, request, userId);
+        return Ok(comment);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> DeleteComment(int id)
+    {
+        var userId = GetCurrentUserId();
+        await m_CommentService.DeleteCommentAsync(id, userId);
+        return NoContent();
+    }
+}

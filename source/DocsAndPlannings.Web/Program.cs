@@ -1,5 +1,5 @@
-using Microsoft.EntityFrameworkCore;
 using DocsAndPlannings.Core.Data;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 

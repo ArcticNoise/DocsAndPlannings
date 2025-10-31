@@ -49,11 +49,26 @@ builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddSingleton<IFileStorageService, FileStorageService>();
 
+// Phase 3: Planning services
+builder.Services.AddScoped<IKeyGenerationService, KeyGenerationService>();
+builder.Services.AddScoped<IStatusService, StatusService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IEpicService, EpicService>();
+builder.Services.AddScoped<IWorkItemService, WorkItemService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
+
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Seed default statuses
+using (var scope = app.Services.CreateScope())
+{
+    var statusService = scope.ServiceProvider.GetRequiredService<IStatusService>();
+    await statusService.CreateDefaultStatusesAsync();
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

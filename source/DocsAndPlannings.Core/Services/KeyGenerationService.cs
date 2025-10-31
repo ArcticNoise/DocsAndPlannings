@@ -1,5 +1,5 @@
-using Microsoft.EntityFrameworkCore;
 using DocsAndPlannings.Core.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace DocsAndPlannings.Core.Services;
 

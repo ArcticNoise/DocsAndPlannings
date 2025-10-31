@@ -15,19 +15,29 @@ public class JwtTokenService : IJwtTokenService
     public JwtTokenService(JwtSettings jwtSettings)
     {
         if (jwtSettings == null)
+        {
             throw new ArgumentNullException(nameof(jwtSettings));
+        }
 
         if (string.IsNullOrEmpty(jwtSettings.Secret))
+        {
             throw new ArgumentException("JWT secret cannot be null or empty", nameof(jwtSettings));
+        }
 
         if (jwtSettings.Secret.Length < 32)
+        {
             throw new ArgumentException("JWT secret must be at least 32 characters (256 bits)", nameof(jwtSettings));
+        }
 
         if (string.IsNullOrEmpty(jwtSettings.Issuer))
+        {
             throw new ArgumentException("JWT issuer cannot be null or empty", nameof(jwtSettings));
+        }
 
         if (string.IsNullOrEmpty(jwtSettings.Audience))
+        {
             throw new ArgumentException("JWT audience cannot be null or empty", nameof(jwtSettings));
+        }
 
         _jwtSettings = jwtSettings;
     }
