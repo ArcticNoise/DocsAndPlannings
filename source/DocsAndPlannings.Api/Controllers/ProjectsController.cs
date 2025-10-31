@@ -6,22 +6,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DocsAndPlannings.Api.Controllers;
 
-[ApiController]
 [Route("api/[controller]")]
-[Authorize]
-public sealed class ProjectsController : ControllerBase
+public sealed class ProjectsController : BaseApiController
 {
     private readonly IProjectService m_ProjectService;
 
     public ProjectsController(IProjectService projectService)
     {
         m_ProjectService = projectService ?? throw new ArgumentNullException(nameof(projectService));
-    }
-
-    private int GetCurrentUserId()
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return int.Parse(userIdClaim!);
     }
 
     [HttpPost]

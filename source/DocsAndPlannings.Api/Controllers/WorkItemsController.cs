@@ -6,22 +6,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DocsAndPlannings.Api.Controllers;
 
-[ApiController]
 [Route("api/[controller]")]
-[Authorize]
-public sealed class WorkItemsController : ControllerBase
+public sealed class WorkItemsController : BaseApiController
 {
     private readonly IWorkItemService m_WorkItemService;
 
     public WorkItemsController(IWorkItemService workItemService)
     {
         m_WorkItemService = workItemService ?? throw new ArgumentNullException(nameof(workItemService));
-    }
-
-    private int GetCurrentUserId()
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return int.Parse(userIdClaim!);
     }
 
     [HttpPost]

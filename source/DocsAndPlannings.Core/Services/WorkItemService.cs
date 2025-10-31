@@ -202,7 +202,35 @@ public sealed class WorkItemService : IWorkItemService
             .Take(request.PageSize)
             .ToListAsync();
 
-        return workItems.Select(MapToListItemDto).ToList();
+        // Single query to get all counts
+        var workItemIds = workItems.Select(w => w.Id).ToList();
+
+        var childWorkItemCounts = await m_Context.WorkItems
+            .Where(w => workItemIds.Contains(w.ParentWorkItemId!.Value))
+            .GroupBy(w => w.ParentWorkItemId)
+            .Select(g => new { ParentId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ParentId!.Value, x => x.Count);
+
+        var commentCounts = await m_Context.WorkItemComments
+            .Where(c => workItemIds.Contains(c.WorkItemId))
+            .GroupBy(c => c.WorkItemId)
+            .Select(g => new { WorkItemId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.WorkItemId, x => x.Count);
+
+        return workItems.Select(workItem => new WorkItemListItemDto
+        {
+            Id = workItem.Id,
+            Key = workItem.Key,
+            Type = workItem.Type,
+            Summary = workItem.Summary,
+            StatusName = workItem.Status.Name,
+            AssigneeName = workItem.Assignee != null ? $"{workItem.Assignee.FirstName} {workItem.Assignee.LastName}" : null,
+            Priority = workItem.Priority,
+            DueDate = workItem.DueDate,
+            UpdatedAt = workItem.UpdatedAt,
+            ChildWorkItemCount = childWorkItemCounts.GetValueOrDefault(workItem.Id, 0),
+            CommentCount = commentCounts.GetValueOrDefault(workItem.Id, 0)
+        }).ToList();
     }
 
     public async Task<WorkItemDto> UpdateWorkItemAsync(int id, UpdateWorkItemRequest request, int userId)
@@ -506,27 +534,6 @@ public sealed class WorkItemService : IWorkItemService
             Priority = workItem.Priority,
             DueDate = workItem.DueDate,
             CreatedAt = workItem.CreatedAt,
-            UpdatedAt = workItem.UpdatedAt,
-            ChildWorkItemCount = childWorkItemCount,
-            CommentCount = commentCount
-        };
-    }
-
-    private WorkItemListItemDto MapToListItemDto(WorkItem workItem)
-    {
-        var childWorkItemCount = m_Context.WorkItems.Count(w => w.ParentWorkItemId == workItem.Id);
-        var commentCount = m_Context.WorkItemComments.Count(c => c.WorkItemId == workItem.Id);
-
-        return new WorkItemListItemDto
-        {
-            Id = workItem.Id,
-            Key = workItem.Key,
-            Type = workItem.Type,
-            Summary = workItem.Summary,
-            StatusName = workItem.Status.Name,
-            AssigneeName = workItem.Assignee != null ? $"{workItem.Assignee.FirstName} {workItem.Assignee.LastName}" : null,
-            Priority = workItem.Priority,
-            DueDate = workItem.DueDate,
             UpdatedAt = workItem.UpdatedAt,
             ChildWorkItemCount = childWorkItemCount,
             CommentCount = commentCount

@@ -6,22 +6,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DocsAndPlannings.Api.Controllers;
 
-[ApiController]
 [Route("api/[controller]")]
-[Authorize]
-public sealed class EpicsController : ControllerBase
+public sealed class EpicsController : BaseApiController
 {
     private readonly IEpicService m_EpicService;
 
     public EpicsController(IEpicService epicService)
     {
         m_EpicService = epicService ?? throw new ArgumentNullException(nameof(epicService));
-    }
-
-    private int GetCurrentUserId()
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return int.Parse(userIdClaim!);
     }
 
     [HttpPost]

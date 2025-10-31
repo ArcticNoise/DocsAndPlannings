@@ -93,13 +93,33 @@ public sealed class ProjectService : IProjectService
             .Take(pageSize)
             .ToListAsync();
 
-        var result = new List<ProjectListItemDto>();
-        foreach (var project in projects)
-        {
-            result.Add(await MapToListItemDtoAsync(project));
-        }
+        // Single query to get all counts
+        var projectIds = projects.Select(p => p.Id).ToList();
 
-        return result;
+        var epicCounts = await m_Context.Epics
+            .Where(e => projectIds.Contains(e.ProjectId))
+            .GroupBy(e => e.ProjectId)
+            .Select(g => new { ProjectId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ProjectId, x => x.Count);
+
+        var workItemCounts = await m_Context.WorkItems
+            .Where(w => projectIds.Contains(w.ProjectId))
+            .GroupBy(w => w.ProjectId)
+            .Select(g => new { ProjectId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ProjectId, x => x.Count);
+
+        return projects.Select(project => new ProjectListItemDto
+        {
+            Id = project.Id,
+            Key = project.Key,
+            Name = project.Name,
+            OwnerName = $"{project.Owner.FirstName} {project.Owner.LastName}",
+            UpdatedAt = project.UpdatedAt,
+            IsActive = project.IsActive,
+            IsArchived = project.IsArchived,
+            EpicCount = epicCounts.GetValueOrDefault(project.Id, 0),
+            WorkItemCount = workItemCounts.GetValueOrDefault(project.Id, 0)
+        }).ToList();
     }
 
     public async Task<ProjectDto> UpdateProjectAsync(int id, UpdateProjectRequest request, int userId)
@@ -227,25 +247,6 @@ public sealed class ProjectService : IProjectService
             OwnerId = project.OwnerId,
             OwnerName = $"{project.Owner.FirstName} {project.Owner.LastName}",
             CreatedAt = project.CreatedAt,
-            UpdatedAt = project.UpdatedAt,
-            IsActive = project.IsActive,
-            IsArchived = project.IsArchived,
-            EpicCount = epicCount,
-            WorkItemCount = workItemCount
-        };
-    }
-
-    private async Task<ProjectListItemDto> MapToListItemDtoAsync(Project project)
-    {
-        var epicCount = await m_Context.Epics.CountAsync(e => e.ProjectId == project.Id);
-        var workItemCount = await m_Context.WorkItems.CountAsync(w => w.ProjectId == project.Id);
-
-        return new ProjectListItemDto
-        {
-            Id = project.Id,
-            Key = project.Key,
-            Name = project.Name,
-            OwnerName = $"{project.Owner.FirstName} {project.Owner.LastName}",
             UpdatedAt = project.UpdatedAt,
             IsActive = project.IsActive,
             IsArchived = project.IsArchived,

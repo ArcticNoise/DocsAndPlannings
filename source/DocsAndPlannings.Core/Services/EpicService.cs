@@ -146,13 +146,35 @@ public sealed class EpicService : IEpicService
             .Take(pageSize)
             .ToListAsync();
 
-        var result = new List<EpicListItemDto>();
-        foreach (var epic in epics)
-        {
-            result.Add(await MapToListItemDtoAsync(epic));
-        }
+        // Single query to get all work item counts
+        var epicIds = epics.Select(e => e.Id).ToList();
 
-        return result;
+        var workItemCounts = await m_Context.WorkItems
+            .Where(w => epicIds.Contains(w.EpicId!.Value))
+            .GroupBy(w => w.EpicId)
+            .Select(g => new { EpicId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.EpicId!.Value, x => x.Count);
+
+        var completedWorkItemCounts = await m_Context.WorkItems
+            .Include(w => w.Status)
+            .Where(w => epicIds.Contains(w.EpicId!.Value) && w.Status.IsCompletedStatus)
+            .GroupBy(w => w.EpicId)
+            .Select(g => new { EpicId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.EpicId!.Value, x => x.Count);
+
+        return epics.Select(epic => new EpicListItemDto
+        {
+            Id = epic.Id,
+            Key = epic.Key,
+            Summary = epic.Summary,
+            StatusName = epic.Status.Name,
+            AssigneeName = epic.Assignee != null ? $"{epic.Assignee.FirstName} {epic.Assignee.LastName}" : null,
+            Priority = epic.Priority,
+            DueDate = epic.DueDate,
+            UpdatedAt = epic.UpdatedAt,
+            WorkItemCount = workItemCounts.GetValueOrDefault(epic.Id, 0),
+            CompletedWorkItemCount = completedWorkItemCounts.GetValueOrDefault(epic.Id, 0)
+        }).ToList();
     }
 
     public async Task<EpicDto> UpdateEpicAsync(int id, UpdateEpicRequest request, int userId)
@@ -318,28 +340,6 @@ public sealed class EpicService : IEpicService
             StartDate = epic.StartDate,
             DueDate = epic.DueDate,
             CreatedAt = epic.CreatedAt,
-            UpdatedAt = epic.UpdatedAt,
-            WorkItemCount = workItemCount,
-            CompletedWorkItemCount = completedWorkItemCount
-        };
-    }
-
-    private async Task<EpicListItemDto> MapToListItemDtoAsync(Epic epic)
-    {
-        var workItemCount = await m_Context.WorkItems.CountAsync(w => w.EpicId == epic.Id);
-        var completedWorkItemCount = await m_Context.WorkItems
-            .Include(w => w.Status)
-            .CountAsync(w => w.EpicId == epic.Id && w.Status.IsCompletedStatus);
-
-        return new EpicListItemDto
-        {
-            Id = epic.Id,
-            Key = epic.Key,
-            Summary = epic.Summary,
-            StatusName = epic.Status.Name,
-            AssigneeName = epic.Assignee != null ? $"{epic.Assignee.FirstName} {epic.Assignee.LastName}" : null,
-            Priority = epic.Priority,
-            DueDate = epic.DueDate,
             UpdatedAt = epic.UpdatedAt,
             WorkItemCount = workItemCount,
             CompletedWorkItemCount = completedWorkItemCount

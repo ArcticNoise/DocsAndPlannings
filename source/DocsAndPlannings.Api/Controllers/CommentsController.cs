@@ -6,22 +6,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DocsAndPlannings.Api.Controllers;
 
-[ApiController]
 [Route("api/[controller]")]
-[Authorize]
-public sealed class CommentsController : ControllerBase
+public sealed class CommentsController : BaseApiController
 {
     private readonly ICommentService m_CommentService;
 
     public CommentsController(ICommentService commentService)
     {
         m_CommentService = commentService ?? throw new ArgumentNullException(nameof(commentService));
-    }
-
-    private int GetCurrentUserId()
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return int.Parse(userIdClaim!);
     }
 
     [HttpPost("workitem/{workItemId}")]
