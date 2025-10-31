@@ -27,4 +27,5 @@ public class Document
     public ICollection<Document> ChildDocuments { get; set; } = new List<Document>();
     public ICollection<DocumentVersion> Versions { get; set; } = new List<DocumentVersion>();
     public ICollection<DocumentTagMap> Tags { get; set; } = new List<DocumentTagMap>();
+    public ICollection<DocumentAttachment> Attachments { get; set; } = new List<DocumentAttachment>();
 }

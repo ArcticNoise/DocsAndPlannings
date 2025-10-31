@@ -17,6 +17,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<DocumentVersion> DocumentVersions { get; set; }
     public DbSet<DocumentTag> DocumentTags { get; set; }
     public DbSet<DocumentTagMap> DocumentTagMaps { get; set; }
+    public DbSet<DocumentAttachment> DocumentAttachments { get; set; }
     public DbSet<Project> Projects { get; set; }
     public DbSet<Epic> Epics { get; set; }
     public DbSet<WorkItem> WorkItems { get; set; }
@@ -147,6 +148,26 @@ public class ApplicationDbContext : DbContext
                 .WithMany(t => t.Documents)
                 .HasForeignKey(e => e.TagId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DocumentAttachment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.StoredFileName).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.FileSizeBytes).IsRequired();
+            entity.Property(e => e.UploadedAt).IsRequired();
+
+            entity.HasOne(e => e.Document)
+                .WithMany(d => d.Attachments)
+                .HasForeignKey(e => e.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.UploadedBy)
+                .WithMany()
+                .HasForeignKey(e => e.UploadedById)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 

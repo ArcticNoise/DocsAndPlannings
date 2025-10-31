@@ -13,15 +13,19 @@ namespace DocsAndPlannings.Core.Services;
 public sealed class DocumentService : IDocumentService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IFileStorageService _fileStorageService;
 
     /// <summary>
     /// Initializes a new instance of the DocumentService class
     /// </summary>
     /// <param name="context">The database context</param>
-    public DocumentService(ApplicationDbContext context)
+    /// <param name="fileStorageService">The file storage service</param>
+    public DocumentService(ApplicationDbContext context, IFileStorageService fileStorageService)
     {
         Debug.Assert(context != null, "Database context cannot be null");
+        Debug.Assert(fileStorageService != null, "File storage service cannot be null");
         _context = context;
+        _fileStorageService = fileStorageService;
     }
 
     /// <inheritdoc/>
@@ -274,6 +278,7 @@ public sealed class DocumentService : IDocumentService
         Debug.Assert(userId > 0, "User ID must be positive");
 
         Document? document = await _context.Documents
+            .Include(d => d.Attachments)
             .FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted);
 
         if (document == null)
@@ -285,6 +290,12 @@ public sealed class DocumentService : IDocumentService
         if (document.AuthorId != userId)
         {
             throw new ForbiddenException("You do not have permission to delete this document");
+        }
+
+        // Delete attached files
+        foreach (DocumentAttachment attachment in document.Attachments)
+        {
+            await _fileStorageService.DeleteFileAsync(attachment.StoredFileName);
         }
 
         document.IsDeleted = true;
@@ -539,6 +550,170 @@ public sealed class DocumentService : IDocumentService
             CreatedAt = version.CreatedAt,
             CreatedById = version.ModifiedById,
             CreatedByName = $"{version.ModifiedBy.FirstName} {version.ModifiedBy.LastName}"
+        };
+    }
+
+    /// <inheritdoc/>
+    public async Task<DocumentAttachmentDto> UploadAttachmentAsync(int documentId, Stream fileStream, string fileName, string contentType, int userId)
+    {
+        Debug.Assert(documentId > 0, "Document ID must be positive");
+        Debug.Assert(fileStream != null, "File stream cannot be null");
+        Debug.Assert(!string.IsNullOrWhiteSpace(fileName), "File name cannot be empty");
+        Debug.Assert(!string.IsNullOrWhiteSpace(contentType), "Content type cannot be empty");
+        Debug.Assert(userId > 0, "User ID must be positive");
+
+        Document? document = await _context.Documents
+            .FirstOrDefaultAsync(d => d.Id == documentId && !d.IsDeleted);
+
+        if (document == null)
+        {
+            throw new NotFoundException($"Document with ID {documentId} not found");
+        }
+
+        // Only author can upload attachments
+        if (document.AuthorId != userId)
+        {
+            throw new ForbiddenException("You do not have permission to upload attachments to this document");
+        }
+
+        // Validate and save file
+        _fileStorageService.ValidateFile(fileName, contentType, fileStream.Length);
+        string storedFileName = await _fileStorageService.SaveFileAsync(fileStream, fileName, contentType);
+
+        // Create attachment record
+        DocumentAttachment attachment = new DocumentAttachment
+        {
+            DocumentId = documentId,
+            FileName = fileName,
+            StoredFileName = storedFileName,
+            ContentType = contentType,
+            FileSizeBytes = fileStream.Length,
+            UploadedAt = DateTime.UtcNow,
+            UploadedById = userId
+        };
+
+        _context.DocumentAttachments.Add(attachment);
+        await _context.SaveChangesAsync();
+
+        // Load user for DTO
+        await _context.Entry(attachment).Reference(a => a.UploadedBy).LoadAsync();
+
+        return MapToDocumentAttachmentDto(attachment);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<DocumentAttachmentDto>> GetDocumentAttachmentsAsync(int documentId, int userId)
+    {
+        Debug.Assert(documentId > 0, "Document ID must be positive");
+        Debug.Assert(userId > 0, "User ID must be positive");
+
+        Document? document = await _context.Documents
+            .FirstOrDefaultAsync(d => d.Id == documentId && !d.IsDeleted);
+
+        if (document == null)
+        {
+            throw new NotFoundException($"Document with ID {documentId} not found");
+        }
+
+        // Check access: unpublished documents only accessible to author
+        if (!document.IsPublished && document.AuthorId != userId)
+        {
+            throw new ForbiddenException("You do not have permission to access this document");
+        }
+
+        List<DocumentAttachment> attachments = await _context.DocumentAttachments
+            .Include(a => a.UploadedBy)
+            .Where(a => a.DocumentId == documentId)
+            .OrderBy(a => a.UploadedAt)
+            .ToListAsync();
+
+        return attachments.Select(MapToDocumentAttachmentDto).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<(Stream FileStream, string ContentType, string FileName)> GetAttachmentFileAsync(int documentId, int attachmentId, int userId)
+    {
+        Debug.Assert(documentId > 0, "Document ID must be positive");
+        Debug.Assert(attachmentId > 0, "Attachment ID must be positive");
+        Debug.Assert(userId > 0, "User ID must be positive");
+
+        Document? document = await _context.Documents
+            .FirstOrDefaultAsync(d => d.Id == documentId && !d.IsDeleted);
+
+        if (document == null)
+        {
+            throw new NotFoundException($"Document with ID {documentId} not found");
+        }
+
+        // Check access: unpublished documents only accessible to author
+        if (!document.IsPublished && document.AuthorId != userId)
+        {
+            throw new ForbiddenException("You do not have permission to access this document");
+        }
+
+        DocumentAttachment? attachment = await _context.DocumentAttachments
+            .FirstOrDefaultAsync(a => a.Id == attachmentId && a.DocumentId == documentId);
+
+        if (attachment == null)
+        {
+            throw new NotFoundException($"Attachment with ID {attachmentId} not found");
+        }
+
+        (Stream fileStream, string contentType) = await _fileStorageService.GetFileAsync(attachment.StoredFileName);
+        return (fileStream, contentType, attachment.FileName);
+    }
+
+    /// <inheritdoc/>
+    public async Task DeleteAttachmentAsync(int documentId, int attachmentId, int userId)
+    {
+        Debug.Assert(documentId > 0, "Document ID must be positive");
+        Debug.Assert(attachmentId > 0, "Attachment ID must be positive");
+        Debug.Assert(userId > 0, "User ID must be positive");
+
+        Document? document = await _context.Documents
+            .FirstOrDefaultAsync(d => d.Id == documentId && !d.IsDeleted);
+
+        if (document == null)
+        {
+            throw new NotFoundException($"Document with ID {documentId} not found");
+        }
+
+        // Only author can delete attachments
+        if (document.AuthorId != userId)
+        {
+            throw new ForbiddenException("You do not have permission to delete attachments from this document");
+        }
+
+        DocumentAttachment? attachment = await _context.DocumentAttachments
+            .FirstOrDefaultAsync(a => a.Id == attachmentId && a.DocumentId == documentId);
+
+        if (attachment == null)
+        {
+            throw new NotFoundException($"Attachment with ID {attachmentId} not found");
+        }
+
+        // Delete file from storage
+        await _fileStorageService.DeleteFileAsync(attachment.StoredFileName);
+
+        // Delete attachment record
+        _context.DocumentAttachments.Remove(attachment);
+        await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Maps a DocumentAttachment entity to DocumentAttachmentDto
+    /// </summary>
+    private static DocumentAttachmentDto MapToDocumentAttachmentDto(DocumentAttachment attachment)
+    {
+        return new DocumentAttachmentDto
+        {
+            Id = attachment.Id,
+            DocumentId = attachment.DocumentId,
+            FileName = attachment.FileName,
+            ContentType = attachment.ContentType,
+            FileSizeBytes = attachment.FileSizeBytes,
+            UploadedAt = attachment.UploadedAt,
+            UploadedByName = $"{attachment.UploadedBy.FirstName} {attachment.UploadedBy.LastName}"
         };
     }
 }

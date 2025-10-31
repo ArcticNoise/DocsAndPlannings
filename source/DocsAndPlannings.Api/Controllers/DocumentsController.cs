@@ -221,6 +221,132 @@ public sealed class DocumentsController : ControllerBase
     }
 
     /// <summary>
+    /// Uploads a file attachment to a document
+    /// </summary>
+    [HttpPost("{documentId}/attachments")]
+    public async Task<ActionResult<DocumentAttachmentDto>> UploadAttachment(int documentId, IFormFile file)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { error = "No file provided" });
+            }
+
+            int userId = GetCurrentUserId();
+            using Stream fileStream = file.OpenReadStream();
+            DocumentAttachmentDto attachment = await _documentService.UploadAttachmentAsync(
+                documentId,
+                fileStream,
+                file.FileName,
+                file.ContentType,
+                userId);
+
+            _logger.LogInformation("File uploaded to document {DocumentId}: {FileName}", documentId, file.FileName);
+            return CreatedAtAction(nameof(GetAttachmentFile), new { documentId, attachmentId = attachment.Id }, attachment);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (ForbiddenException ex)
+        {
+            return StatusCode(403, new { error = ex.Message });
+        }
+        catch (BadRequestException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error uploading file to document {DocumentId}", documentId);
+            return StatusCode(500, new { error = "An error occurred while uploading the file" });
+        }
+    }
+
+    /// <summary>
+    /// Gets all attachments for a document
+    /// </summary>
+    [HttpGet("{documentId}/attachments")]
+    public async Task<ActionResult<IReadOnlyList<DocumentAttachmentDto>>> GetDocumentAttachments(int documentId)
+    {
+        try
+        {
+            int userId = GetCurrentUserId();
+            IReadOnlyList<DocumentAttachmentDto> attachments = await _documentService.GetDocumentAttachmentsAsync(documentId, userId);
+            return Ok(attachments);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (ForbiddenException ex)
+        {
+            return StatusCode(403, new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error retrieving attachments for document {DocumentId}", documentId);
+            return StatusCode(500, new { error = "An error occurred while retrieving attachments" });
+        }
+    }
+
+    /// <summary>
+    /// Downloads an attachment file
+    /// </summary>
+    [HttpGet("{documentId}/attachments/{attachmentId}")]
+    public async Task<IActionResult> GetAttachmentFile(int documentId, int attachmentId)
+    {
+        try
+        {
+            int userId = GetCurrentUserId();
+            (Stream fileStream, string contentType, string fileName) = await _documentService.GetAttachmentFileAsync(documentId, attachmentId, userId);
+            return File(fileStream, contentType, fileName);
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (ForbiddenException ex)
+        {
+            return StatusCode(403, new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error downloading attachment {AttachmentId} from document {DocumentId}", attachmentId, documentId);
+            return StatusCode(500, new { error = "An error occurred while downloading the file" });
+        }
+    }
+
+    /// <summary>
+    /// Deletes an attachment
+    /// </summary>
+    [HttpDelete("{documentId}/attachments/{attachmentId}")]
+    public async Task<IActionResult> DeleteAttachment(int documentId, int attachmentId)
+    {
+        try
+        {
+            int userId = GetCurrentUserId();
+            await _documentService.DeleteAttachmentAsync(documentId, attachmentId, userId);
+            _logger.LogInformation("Attachment {AttachmentId} deleted from document {DocumentId}", attachmentId, documentId);
+            return NoContent();
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (ForbiddenException ex)
+        {
+            return StatusCode(403, new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error deleting attachment {AttachmentId} from document {DocumentId}", attachmentId, documentId);
+            return StatusCode(500, new { error = "An error occurred while deleting the attachment" });
+        }
+    }
+
+    /// <summary>
     /// Gets the current user ID from claims
     /// </summary>
     private int GetCurrentUserId()

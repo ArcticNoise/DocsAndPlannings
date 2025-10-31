@@ -74,4 +74,49 @@ public interface IDocumentService
     /// <param name="userId">The ID of the requesting user</param>
     /// <returns>List of documents matching the criteria</returns>
     Task<IReadOnlyList<DocumentListItemDto>> SearchDocumentsAsync(DocumentSearchRequest request, int userId);
+
+    /// <summary>
+    /// Uploads a file attachment to a document
+    /// </summary>
+    /// <param name="documentId">The document ID</param>
+    /// <param name="fileStream">The file stream</param>
+    /// <param name="fileName">The original file name</param>
+    /// <param name="contentType">The MIME type</param>
+    /// <param name="userId">The ID of the user uploading the file</param>
+    /// <returns>The created attachment</returns>
+    /// <exception cref="NotFoundException">Thrown when document is not found</exception>
+    /// <exception cref="ForbiddenException">Thrown when user is not the author</exception>
+    /// <exception cref="BadRequestException">Thrown when file is invalid</exception>
+    Task<DocumentAttachmentDto> UploadAttachmentAsync(int documentId, Stream fileStream, string fileName, string contentType, int userId);
+
+    /// <summary>
+    /// Gets all attachments for a document
+    /// </summary>
+    /// <param name="documentId">The document ID</param>
+    /// <param name="userId">The ID of the requesting user</param>
+    /// <returns>List of attachments</returns>
+    /// <exception cref="NotFoundException">Thrown when document is not found</exception>
+    /// <exception cref="ForbiddenException">Thrown when user lacks access to unpublished document</exception>
+    Task<IReadOnlyList<DocumentAttachmentDto>> GetDocumentAttachmentsAsync(int documentId, int userId);
+
+    /// <summary>
+    /// Gets an attachment file stream
+    /// </summary>
+    /// <param name="documentId">The document ID</param>
+    /// <param name="attachmentId">The attachment ID</param>
+    /// <param name="userId">The ID of the requesting user</param>
+    /// <returns>A tuple containing the file stream, content type, and file name</returns>
+    /// <exception cref="NotFoundException">Thrown when document or attachment is not found</exception>
+    /// <exception cref="ForbiddenException">Thrown when user lacks access to unpublished document</exception>
+    Task<(Stream FileStream, string ContentType, string FileName)> GetAttachmentFileAsync(int documentId, int attachmentId, int userId);
+
+    /// <summary>
+    /// Deletes an attachment
+    /// </summary>
+    /// <param name="documentId">The document ID</param>
+    /// <param name="attachmentId">The attachment ID</param>
+    /// <param name="userId">The ID of the user deleting the attachment</param>
+    /// <exception cref="NotFoundException">Thrown when document or attachment is not found</exception>
+    /// <exception cref="ForbiddenException">Thrown when user is not the author</exception>
+    Task DeleteAttachmentAsync(int documentId, int attachmentId, int userId);
 }
