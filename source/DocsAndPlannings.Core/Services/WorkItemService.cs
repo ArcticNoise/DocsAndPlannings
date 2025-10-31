@@ -23,7 +23,7 @@ public sealed class WorkItemService : IWorkItemService
         m_StatusService = statusService ?? throw new ArgumentNullException(nameof(statusService));
     }
 
-    public async Task<WorkItemDto> CreateWorkItemAsync(CreateWorkItemRequest request, int creatorId)
+    public async Task<WorkItemDto> CreateWorkItemAsync(CreateWorkItemRequest request, int creatorId, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -31,7 +31,7 @@ public sealed class WorkItemService : IWorkItemService
         }
 
         // Validate project exists
-        var project = await m_Context.Projects.FindAsync(request.ProjectId);
+        var project = await m_Context.Projects.FindAsync(new object[] { request.ProjectId }, cancellationToken);
         if (project is null)
         {
             throw new NotFoundException($"Project with ID {request.ProjectId} not found");
@@ -40,7 +40,7 @@ public sealed class WorkItemService : IWorkItemService
         // Validate epic if provided
         if (request.EpicId.HasValue)
         {
-            var epic = await m_Context.Epics.FindAsync(request.EpicId.Value);
+            var epic = await m_Context.Epics.FindAsync(new object[] { request.EpicId.Value }, cancellationToken);
             if (epic is null)
             {
                 throw new NotFoundException($"Epic with ID {request.EpicId.Value} not found");
@@ -54,7 +54,7 @@ public sealed class WorkItemService : IWorkItemService
 
         // Get default status for new items
         var defaultStatus = await m_Context.Statuses
-            .FirstOrDefaultAsync(s => s.IsDefaultForNew && s.IsActive);
+            .FirstOrDefaultAsync(s => s.IsDefaultForNew && s.IsActive, cancellationToken);
         if (defaultStatus is null)
         {
             throw new BadRequestException("No default status found. Please ensure at least one status is marked as default.");
@@ -63,7 +63,7 @@ public sealed class WorkItemService : IWorkItemService
         // Validate assignee if provided
         if (request.AssigneeId.HasValue)
         {
-            var assignee = await m_Context.Users.FindAsync(request.AssigneeId.Value);
+            var assignee = await m_Context.Users.FindAsync(new object[] { request.AssigneeId.Value }, cancellationToken);
             if (assignee is null)
             {
                 throw new NotFoundException($"User with ID {request.AssigneeId.Value} not found");
@@ -73,11 +73,11 @@ public sealed class WorkItemService : IWorkItemService
         // Validate hierarchy
         if (request.ParentWorkItemId.HasValue)
         {
-            await ValidateHierarchyAsync(request.Type, request.ParentWorkItemId.Value, request.ProjectId);
+            await ValidateHierarchyAsync(request.Type, request.ParentWorkItemId.Value, request.ProjectId, cancellationToken);
         }
 
         // Generate work item key
-        var workItemKey = await m_KeyGenerationService.GenerateWorkItemKeyAsync(request.ProjectId);
+        var workItemKey = await m_KeyGenerationService.GenerateWorkItemKeyAsync(request.ProjectId, cancellationToken);
 
         var workItem = new WorkItem
         {
@@ -98,12 +98,12 @@ public sealed class WorkItemService : IWorkItemService
         };
 
         m_Context.WorkItems.Add(workItem);
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
-        return await MapToDtoAsync(workItem);
+        return await MapToDtoAsync(workItem, cancellationToken);
     }
 
-    public async Task<WorkItemDto?> GetWorkItemByIdAsync(int id)
+    public async Task<WorkItemDto?> GetWorkItemByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var workItem = await m_Context.WorkItems
             .Include(w => w.Project)
@@ -113,12 +113,12 @@ public sealed class WorkItemService : IWorkItemService
             .Include(w => w.Assignee)
             .Include(w => w.Reporter)
             .AsNoTracking()
-            .FirstOrDefaultAsync(w => w.Id == id);
+            .FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
 
-        return workItem != null ? await MapToDtoAsync(workItem) : null;
+        return workItem != null ? await MapToDtoAsync(workItem, cancellationToken) : null;
     }
 
-    public async Task<WorkItemDto?> GetWorkItemByKeyAsync(string key)
+    public async Task<WorkItemDto?> GetWorkItemByKeyAsync(string key, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(key))
         {
@@ -133,12 +133,12 @@ public sealed class WorkItemService : IWorkItemService
             .Include(w => w.Assignee)
             .Include(w => w.Reporter)
             .AsNoTracking()
-            .FirstOrDefaultAsync(w => w.Key == key);
+            .FirstOrDefaultAsync(w => w.Key == key, cancellationToken);
 
-        return workItem != null ? await MapToDtoAsync(workItem) : null;
+        return workItem != null ? await MapToDtoAsync(workItem, cancellationToken) : null;
     }
 
-    public async Task<IReadOnlyList<WorkItemListItemDto>> SearchWorkItemsAsync(WorkItemSearchRequest request)
+    public async Task<IReadOnlyList<WorkItemListItemDto>> SearchWorkItemsAsync(WorkItemSearchRequest request, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -200,7 +200,7 @@ public sealed class WorkItemService : IWorkItemService
             .OrderByDescending(w => w.UpdatedAt)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // Single query to get all counts
         var workItemIds = workItems.Select(w => w.Id).ToList();
@@ -209,13 +209,13 @@ public sealed class WorkItemService : IWorkItemService
             .Where(w => workItemIds.Contains(w.ParentWorkItemId!.Value))
             .GroupBy(w => w.ParentWorkItemId)
             .Select(g => new { ParentId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.ParentId!.Value, x => x.Count);
+            .ToDictionaryAsync(x => x.ParentId!.Value, x => x.Count, cancellationToken);
 
         var commentCounts = await m_Context.WorkItemComments
             .Where(c => workItemIds.Contains(c.WorkItemId))
             .GroupBy(c => c.WorkItemId)
             .Select(g => new { WorkItemId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.WorkItemId, x => x.Count);
+            .ToDictionaryAsync(x => x.WorkItemId, x => x.Count, cancellationToken);
 
         return workItems.Select(workItem => new WorkItemListItemDto
         {
@@ -233,7 +233,7 @@ public sealed class WorkItemService : IWorkItemService
         }).ToList();
     }
 
-    public async Task<WorkItemDto> UpdateWorkItemAsync(int id, UpdateWorkItemRequest request, int userId)
+    public async Task<WorkItemDto> UpdateWorkItemAsync(int id, UpdateWorkItemRequest request, int userId, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -247,7 +247,7 @@ public sealed class WorkItemService : IWorkItemService
             .Include(w => w.Status)
             .Include(w => w.Assignee)
             .Include(w => w.Reporter)
-            .FirstOrDefaultAsync(w => w.Id == id);
+            .FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
 
         if (workItem is null)
         {
@@ -255,7 +255,7 @@ public sealed class WorkItemService : IWorkItemService
         }
 
         // Validate status exists
-        var status = await m_Context.Statuses.FindAsync(request.StatusId);
+        var status = await m_Context.Statuses.FindAsync(new object[] { request.StatusId }, cancellationToken);
         if (status is null)
         {
             throw new NotFoundException($"Status with ID {request.StatusId} not found");
@@ -264,7 +264,7 @@ public sealed class WorkItemService : IWorkItemService
         // Validate assignee if provided
         if (request.AssigneeId.HasValue)
         {
-            var assignee = await m_Context.Users.FindAsync(request.AssigneeId.Value);
+            var assignee = await m_Context.Users.FindAsync(new object[] { request.AssigneeId.Value }, cancellationToken);
             if (assignee is null)
             {
                 throw new NotFoundException($"User with ID {request.AssigneeId.Value} not found");
@@ -279,14 +279,14 @@ public sealed class WorkItemService : IWorkItemService
         workItem.DueDate = request.DueDate;
         workItem.UpdatedAt = DateTime.UtcNow;
 
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
-        return await MapToDtoAsync(workItem);
+        return await MapToDtoAsync(workItem, cancellationToken);
     }
 
-    public async Task DeleteWorkItemAsync(int id, int userId)
+    public async Task DeleteWorkItemAsync(int id, int userId, CancellationToken cancellationToken = default)
     {
-        var workItem = await m_Context.WorkItems.FirstOrDefaultAsync(w => w.Id == id);
+        var workItem = await m_Context.WorkItems.FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
 
         if (workItem is null)
         {
@@ -294,7 +294,7 @@ public sealed class WorkItemService : IWorkItemService
         }
 
         // Check for child work items
-        var childCount = await m_Context.WorkItems.CountAsync(w => w.ParentWorkItemId == id);
+        var childCount = await m_Context.WorkItems.CountAsync(w => w.ParentWorkItemId == id, cancellationToken);
 
         if (childCount > 0)
         {
@@ -304,7 +304,7 @@ public sealed class WorkItemService : IWorkItemService
         }
 
         // Check for comments
-        var commentCount = await m_Context.WorkItemComments.CountAsync(c => c.WorkItemId == id);
+        var commentCount = await m_Context.WorkItemComments.CountAsync(c => c.WorkItemId == id, cancellationToken);
 
         if (commentCount > 0)
         {
@@ -314,10 +314,10 @@ public sealed class WorkItemService : IWorkItemService
         }
 
         m_Context.WorkItems.Remove(workItem);
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<WorkItemDto> AssignWorkItemAsync(int id, int? assigneeId, int userId)
+    public async Task<WorkItemDto> AssignWorkItemAsync(int id, int? assigneeId, int userId, CancellationToken cancellationToken = default)
     {
         var workItem = await m_Context.WorkItems
             .Include(w => w.Project)
@@ -326,7 +326,7 @@ public sealed class WorkItemService : IWorkItemService
             .Include(w => w.Status)
             .Include(w => w.Assignee)
             .Include(w => w.Reporter)
-            .FirstOrDefaultAsync(w => w.Id == id);
+            .FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
 
         if (workItem is null)
         {
@@ -336,7 +336,7 @@ public sealed class WorkItemService : IWorkItemService
         // Validate assignee if provided
         if (assigneeId.HasValue)
         {
-            var assignee = await m_Context.Users.FindAsync(assigneeId.Value);
+            var assignee = await m_Context.Users.FindAsync(new object[] { assigneeId.Value }, cancellationToken);
             if (assignee is null)
             {
                 throw new NotFoundException($"User with ID {assigneeId.Value} not found");
@@ -346,12 +346,12 @@ public sealed class WorkItemService : IWorkItemService
         workItem.AssigneeId = assigneeId;
         workItem.UpdatedAt = DateTime.UtcNow;
 
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
-        return await MapToDtoAsync(workItem);
+        return await MapToDtoAsync(workItem, cancellationToken);
     }
 
-    public async Task<WorkItemDto> UpdateWorkItemStatusAsync(int id, int statusId, int userId)
+    public async Task<WorkItemDto> UpdateWorkItemStatusAsync(int id, int statusId, int userId, CancellationToken cancellationToken = default)
     {
         var workItem = await m_Context.WorkItems
             .Include(w => w.Project)
@@ -360,7 +360,7 @@ public sealed class WorkItemService : IWorkItemService
             .Include(w => w.Status)
             .Include(w => w.Assignee)
             .Include(w => w.Reporter)
-            .FirstOrDefaultAsync(w => w.Id == id);
+            .FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
 
         if (workItem is null)
         {
@@ -368,17 +368,17 @@ public sealed class WorkItemService : IWorkItemService
         }
 
         // Validate status exists
-        var newStatus = await m_Context.Statuses.FindAsync(statusId);
+        var newStatus = await m_Context.Statuses.FindAsync(new object[] { statusId }, cancellationToken);
         if (newStatus is null)
         {
             throw new NotFoundException($"Status with ID {statusId} not found");
         }
 
         // Validate status transition
-        var isValidTransition = await m_StatusService.ValidateTransitionAsync(workItem.StatusId, statusId);
+        var isValidTransition = await m_StatusService.ValidateTransitionAsync(workItem.StatusId, statusId, cancellationToken);
         if (!isValidTransition)
         {
-            var currentStatus = await m_Context.Statuses.FindAsync(workItem.StatusId);
+            var currentStatus = await m_Context.Statuses.FindAsync(new object[] { workItem.StatusId }, cancellationToken);
             throw new InvalidStatusTransitionException(
                 $"Cannot transition from '{currentStatus?.Name ?? "Unknown"}' to '{newStatus.Name}'");
         }
@@ -386,12 +386,12 @@ public sealed class WorkItemService : IWorkItemService
         workItem.StatusId = statusId;
         workItem.UpdatedAt = DateTime.UtcNow;
 
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
-        return await MapToDtoAsync(workItem);
+        return await MapToDtoAsync(workItem, cancellationToken);
     }
 
-    public async Task<WorkItemDto> UpdateWorkItemParentAsync(int id, int? parentWorkItemId, int userId)
+    public async Task<WorkItemDto> UpdateWorkItemParentAsync(int id, int? parentWorkItemId, int userId, CancellationToken cancellationToken = default)
     {
         var workItem = await m_Context.WorkItems
             .Include(w => w.Project)
@@ -400,7 +400,7 @@ public sealed class WorkItemService : IWorkItemService
             .Include(w => w.Status)
             .Include(w => w.Assignee)
             .Include(w => w.Reporter)
-            .FirstOrDefaultAsync(w => w.Id == id);
+            .FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
 
         if (workItem is null)
         {
@@ -410,10 +410,10 @@ public sealed class WorkItemService : IWorkItemService
         // Validate hierarchy if parent is specified
         if (parentWorkItemId.HasValue)
         {
-            await ValidateHierarchyAsync(workItem.Type, parentWorkItemId.Value, workItem.ProjectId);
+            await ValidateHierarchyAsync(workItem.Type, parentWorkItemId.Value, workItem.ProjectId, cancellationToken);
 
             // Check for circular reference
-            var wouldCreateCircular = await WouldCreateCircularReferenceAsync(id, parentWorkItemId);
+            var wouldCreateCircular = await WouldCreateCircularReferenceAsync(id, parentWorkItemId, cancellationToken);
             if (wouldCreateCircular)
             {
                 throw new CircularHierarchyException("Setting this parent would create a circular reference");
@@ -423,14 +423,14 @@ public sealed class WorkItemService : IWorkItemService
         workItem.ParentWorkItemId = parentWorkItemId;
         workItem.UpdatedAt = DateTime.UtcNow;
 
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
-        return await MapToDtoAsync(workItem);
+        return await MapToDtoAsync(workItem, cancellationToken);
     }
 
-    private async Task ValidateHierarchyAsync(WorkItemType childType, int parentWorkItemId, int projectId)
+    private async Task ValidateHierarchyAsync(WorkItemType childType, int parentWorkItemId, int projectId, CancellationToken cancellationToken = default)
     {
-        var parent = await m_Context.WorkItems.FindAsync(parentWorkItemId);
+        var parent = await m_Context.WorkItems.FindAsync(new object[] { parentWorkItemId }, cancellationToken);
 
         if (parent is null)
         {
@@ -471,7 +471,7 @@ public sealed class WorkItemService : IWorkItemService
         }
     }
 
-    private async Task<bool> WouldCreateCircularReferenceAsync(int workItemId, int? parentWorkItemId)
+    private async Task<bool> WouldCreateCircularReferenceAsync(int workItemId, int? parentWorkItemId, CancellationToken cancellationToken = default)
     {
         if (!parentWorkItemId.HasValue)
         {
@@ -494,7 +494,7 @@ public sealed class WorkItemService : IWorkItemService
                 .AsNoTracking()
                 .Where(w => w.Id == currentId)
                 .Select(w => new { w.ParentWorkItemId })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (parent is null)
             {
@@ -507,10 +507,10 @@ public sealed class WorkItemService : IWorkItemService
         return false;
     }
 
-    private async Task<WorkItemDto> MapToDtoAsync(WorkItem workItem)
+    private async Task<WorkItemDto> MapToDtoAsync(WorkItem workItem, CancellationToken cancellationToken = default)
     {
-        var childWorkItemCount = await m_Context.WorkItems.CountAsync(w => w.ParentWorkItemId == workItem.Id);
-        var commentCount = await m_Context.WorkItemComments.CountAsync(c => c.WorkItemId == workItem.Id);
+        var childWorkItemCount = await m_Context.WorkItems.CountAsync(w => w.ParentWorkItemId == workItem.Id, cancellationToken);
+        var commentCount = await m_Context.WorkItemComments.CountAsync(c => c.WorkItemId == workItem.Id, cancellationToken);
 
         return new WorkItemDto
         {

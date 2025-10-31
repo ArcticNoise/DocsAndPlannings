@@ -23,7 +23,7 @@ public sealed class EpicService : IEpicService
         m_StatusService = statusService ?? throw new ArgumentNullException(nameof(statusService));
     }
 
-    public async Task<EpicDto> CreateEpicAsync(CreateEpicRequest request, int creatorId)
+    public async Task<EpicDto> CreateEpicAsync(CreateEpicRequest request, int creatorId, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -31,7 +31,7 @@ public sealed class EpicService : IEpicService
         }
 
         // Validate project exists
-        var project = await m_Context.Projects.FindAsync(request.ProjectId);
+        var project = await m_Context.Projects.FindAsync(new object[] { request.ProjectId }, cancellationToken);
         if (project is null)
         {
             throw new NotFoundException($"Project with ID {request.ProjectId} not found");
@@ -39,7 +39,7 @@ public sealed class EpicService : IEpicService
 
         // Get default status for new items
         var defaultStatus = await m_Context.Statuses
-            .FirstOrDefaultAsync(s => s.IsDefaultForNew && s.IsActive);
+            .FirstOrDefaultAsync(s => s.IsDefaultForNew && s.IsActive, cancellationToken);
         if (defaultStatus is null)
         {
             throw new BadRequestException("No default status found. Please ensure at least one status is marked as default.");
@@ -48,7 +48,7 @@ public sealed class EpicService : IEpicService
         // Validate assignee if provided
         if (request.AssigneeId.HasValue)
         {
-            var assignee = await m_Context.Users.FindAsync(request.AssigneeId.Value);
+            var assignee = await m_Context.Users.FindAsync(new object[] { request.AssigneeId.Value }, cancellationToken);
             if (assignee is null)
             {
                 throw new NotFoundException($"User with ID {request.AssigneeId.Value} not found");
@@ -56,7 +56,7 @@ public sealed class EpicService : IEpicService
         }
 
         // Generate epic key
-        var epicKey = await m_KeyGenerationService.GenerateEpicKeyAsync(request.ProjectId);
+        var epicKey = await m_KeyGenerationService.GenerateEpicKeyAsync(request.ProjectId, cancellationToken);
 
         var epic = new Epic
         {
@@ -74,24 +74,24 @@ public sealed class EpicService : IEpicService
         };
 
         m_Context.Epics.Add(epic);
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
-        return await MapToDtoAsync(epic);
+        return await MapToDtoAsync(epic, cancellationToken);
     }
 
-    public async Task<EpicDto?> GetEpicByIdAsync(int id)
+    public async Task<EpicDto?> GetEpicByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var epic = await m_Context.Epics
             .Include(e => e.Project)
             .Include(e => e.Status)
             .Include(e => e.Assignee)
             .AsNoTracking()
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
-        return epic != null ? await MapToDtoAsync(epic) : null;
+        return epic != null ? await MapToDtoAsync(epic, cancellationToken) : null;
     }
 
-    public async Task<EpicDto?> GetEpicByKeyAsync(string key)
+    public async Task<EpicDto?> GetEpicByKeyAsync(string key, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(key))
         {
@@ -103,9 +103,9 @@ public sealed class EpicService : IEpicService
             .Include(e => e.Status)
             .Include(e => e.Assignee)
             .AsNoTracking()
-            .FirstOrDefaultAsync(e => e.Key == key);
+            .FirstOrDefaultAsync(e => e.Key == key, cancellationToken);
 
-        return epic != null ? await MapToDtoAsync(epic) : null;
+        return epic != null ? await MapToDtoAsync(epic, cancellationToken) : null;
     }
 
     public async Task<IReadOnlyList<EpicListItemDto>> GetAllEpicsAsync(
@@ -114,7 +114,8 @@ public sealed class EpicService : IEpicService
         int? assigneeId = null,
         bool? isActive = null,
         int page = 1,
-        int pageSize = 50)
+        int pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         var query = m_Context.Epics
             .Include(e => e.Project)
@@ -144,7 +145,7 @@ public sealed class EpicService : IEpicService
             .OrderByDescending(e => e.UpdatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // Single query to get all work item counts
         var epicIds = epics.Select(e => e.Id).ToList();
@@ -153,14 +154,14 @@ public sealed class EpicService : IEpicService
             .Where(w => epicIds.Contains(w.EpicId!.Value))
             .GroupBy(w => w.EpicId)
             .Select(g => new { EpicId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.EpicId!.Value, x => x.Count);
+            .ToDictionaryAsync(x => x.EpicId!.Value, x => x.Count, cancellationToken);
 
         var completedWorkItemCounts = await m_Context.WorkItems
             .Include(w => w.Status)
             .Where(w => epicIds.Contains(w.EpicId!.Value) && w.Status.IsCompletedStatus)
             .GroupBy(w => w.EpicId)
             .Select(g => new { EpicId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.EpicId!.Value, x => x.Count);
+            .ToDictionaryAsync(x => x.EpicId!.Value, x => x.Count, cancellationToken);
 
         return epics.Select(epic => new EpicListItemDto
         {
@@ -177,7 +178,7 @@ public sealed class EpicService : IEpicService
         }).ToList();
     }
 
-    public async Task<EpicDto> UpdateEpicAsync(int id, UpdateEpicRequest request, int userId)
+    public async Task<EpicDto> UpdateEpicAsync(int id, UpdateEpicRequest request, int userId, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -188,7 +189,7 @@ public sealed class EpicService : IEpicService
             .Include(e => e.Project)
             .Include(e => e.Status)
             .Include(e => e.Assignee)
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
         if (epic is null)
         {
@@ -196,7 +197,7 @@ public sealed class EpicService : IEpicService
         }
 
         // Validate status exists
-        var status = await m_Context.Statuses.FindAsync(request.StatusId);
+        var status = await m_Context.Statuses.FindAsync(new object[] { request.StatusId }, cancellationToken);
         if (status is null)
         {
             throw new NotFoundException($"Status with ID {request.StatusId} not found");
@@ -205,7 +206,7 @@ public sealed class EpicService : IEpicService
         // Validate assignee if provided
         if (request.AssigneeId.HasValue)
         {
-            var assignee = await m_Context.Users.FindAsync(request.AssigneeId.Value);
+            var assignee = await m_Context.Users.FindAsync(new object[] { request.AssigneeId.Value }, cancellationToken);
             if (assignee is null)
             {
                 throw new NotFoundException($"User with ID {request.AssigneeId.Value} not found");
@@ -221,14 +222,14 @@ public sealed class EpicService : IEpicService
         epic.DueDate = request.DueDate;
         epic.UpdatedAt = DateTime.UtcNow;
 
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
-        return await MapToDtoAsync(epic);
+        return await MapToDtoAsync(epic, cancellationToken);
     }
 
-    public async Task DeleteEpicAsync(int id, int userId)
+    public async Task DeleteEpicAsync(int id, int userId, CancellationToken cancellationToken = default)
     {
-        var epic = await m_Context.Epics.FirstOrDefaultAsync(e => e.Id == id);
+        var epic = await m_Context.Epics.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
         if (epic is null)
         {
@@ -236,7 +237,7 @@ public sealed class EpicService : IEpicService
         }
 
         // Check for associated work items
-        var workItemCount = await m_Context.WorkItems.CountAsync(w => w.EpicId == id);
+        var workItemCount = await m_Context.WorkItems.CountAsync(w => w.EpicId == id, cancellationToken);
 
         if (workItemCount > 0)
         {
@@ -246,16 +247,16 @@ public sealed class EpicService : IEpicService
         }
 
         m_Context.Epics.Remove(epic);
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<EpicDto> AssignEpicAsync(int id, int? assigneeId, int userId)
+    public async Task<EpicDto> AssignEpicAsync(int id, int? assigneeId, int userId, CancellationToken cancellationToken = default)
     {
         var epic = await m_Context.Epics
             .Include(e => e.Project)
             .Include(e => e.Status)
             .Include(e => e.Assignee)
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
         if (epic is null)
         {
@@ -265,7 +266,7 @@ public sealed class EpicService : IEpicService
         // Validate assignee if provided
         if (assigneeId.HasValue)
         {
-            var assignee = await m_Context.Users.FindAsync(assigneeId.Value);
+            var assignee = await m_Context.Users.FindAsync(new object[] { assigneeId.Value }, cancellationToken);
             if (assignee is null)
             {
                 throw new NotFoundException($"User with ID {assigneeId.Value} not found");
@@ -275,18 +276,18 @@ public sealed class EpicService : IEpicService
         epic.AssigneeId = assigneeId;
         epic.UpdatedAt = DateTime.UtcNow;
 
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
-        return await MapToDtoAsync(epic);
+        return await MapToDtoAsync(epic, cancellationToken);
     }
 
-    public async Task<EpicDto> UpdateEpicStatusAsync(int id, int statusId, int userId)
+    public async Task<EpicDto> UpdateEpicStatusAsync(int id, int statusId, int userId, CancellationToken cancellationToken = default)
     {
         var epic = await m_Context.Epics
             .Include(e => e.Project)
             .Include(e => e.Status)
             .Include(e => e.Assignee)
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
         if (epic is null)
         {
@@ -294,17 +295,17 @@ public sealed class EpicService : IEpicService
         }
 
         // Validate status exists
-        var newStatus = await m_Context.Statuses.FindAsync(statusId);
+        var newStatus = await m_Context.Statuses.FindAsync(new object[] { statusId }, cancellationToken);
         if (newStatus is null)
         {
             throw new NotFoundException($"Status with ID {statusId} not found");
         }
 
         // Validate status transition
-        var isValidTransition = await m_StatusService.ValidateTransitionAsync(epic.StatusId, statusId);
+        var isValidTransition = await m_StatusService.ValidateTransitionAsync(epic.StatusId, statusId, cancellationToken);
         if (!isValidTransition)
         {
-            var currentStatus = await m_Context.Statuses.FindAsync(epic.StatusId);
+            var currentStatus = await m_Context.Statuses.FindAsync(new object[] { epic.StatusId }, cancellationToken);
             throw new InvalidStatusTransitionException(
                 $"Cannot transition from '{currentStatus?.Name ?? "Unknown"}' to '{newStatus.Name}'");
         }
@@ -312,17 +313,17 @@ public sealed class EpicService : IEpicService
         epic.StatusId = statusId;
         epic.UpdatedAt = DateTime.UtcNow;
 
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
-        return await MapToDtoAsync(epic);
+        return await MapToDtoAsync(epic, cancellationToken);
     }
 
-    private async Task<EpicDto> MapToDtoAsync(Epic epic)
+    private async Task<EpicDto> MapToDtoAsync(Epic epic, CancellationToken cancellationToken = default)
     {
-        var workItemCount = await m_Context.WorkItems.CountAsync(w => w.EpicId == epic.Id);
+        var workItemCount = await m_Context.WorkItems.CountAsync(w => w.EpicId == epic.Id, cancellationToken);
         var completedWorkItemCount = await m_Context.WorkItems
             .Include(w => w.Status)
-            .CountAsync(w => w.EpicId == epic.Id && w.Status.IsCompletedStatus);
+            .CountAsync(w => w.EpicId == epic.Id && w.Status.IsCompletedStatus, cancellationToken);
 
         return new EpicDto
         {

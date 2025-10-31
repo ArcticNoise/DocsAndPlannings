@@ -16,7 +16,7 @@ public sealed class ProjectService : IProjectService
         m_Context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
-    public async Task<ProjectDto> CreateProjectAsync(CreateProjectRequest request, int ownerId)
+    public async Task<ProjectDto> CreateProjectAsync(CreateProjectRequest request, int ownerId, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -25,7 +25,7 @@ public sealed class ProjectService : IProjectService
 
         // Validate unique key
         var exists = await m_Context.Projects
-            .AnyAsync(p => p.Key == request.Key);
+            .AnyAsync(p => p.Key == request.Key, cancellationToken);
 
         if (exists)
         {
@@ -45,19 +45,19 @@ public sealed class ProjectService : IProjectService
         };
 
         m_Context.Projects.Add(project);
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
-        return await MapToDtoAsync(project);
+        return await MapToDtoAsync(project, cancellationToken);
     }
 
-    public async Task<ProjectDto?> GetProjectByIdAsync(int id)
+    public async Task<ProjectDto?> GetProjectByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var project = await m_Context.Projects
             .Include(p => p.Owner)
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
-        return project != null ? await MapToDtoAsync(project) : null;
+        return project != null ? await MapToDtoAsync(project, cancellationToken) : null;
     }
 
     public async Task<IReadOnlyList<ProjectListItemDto>> GetAllProjectsAsync(
@@ -65,7 +65,8 @@ public sealed class ProjectService : IProjectService
         bool? isActive = null,
         bool? isArchived = null,
         int page = 1,
-        int pageSize = 50)
+        int pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         var query = m_Context.Projects
             .Include(p => p.Owner)
@@ -91,7 +92,7 @@ public sealed class ProjectService : IProjectService
             .OrderByDescending(p => p.UpdatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         // Single query to get all counts
         var projectIds = projects.Select(p => p.Id).ToList();
@@ -100,13 +101,13 @@ public sealed class ProjectService : IProjectService
             .Where(e => projectIds.Contains(e.ProjectId))
             .GroupBy(e => e.ProjectId)
             .Select(g => new { ProjectId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.ProjectId, x => x.Count);
+            .ToDictionaryAsync(x => x.ProjectId, x => x.Count, cancellationToken);
 
         var workItemCounts = await m_Context.WorkItems
             .Where(w => projectIds.Contains(w.ProjectId))
             .GroupBy(w => w.ProjectId)
             .Select(g => new { ProjectId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.ProjectId, x => x.Count);
+            .ToDictionaryAsync(x => x.ProjectId, x => x.Count, cancellationToken);
 
         return projects.Select(project => new ProjectListItemDto
         {
@@ -122,7 +123,7 @@ public sealed class ProjectService : IProjectService
         }).ToList();
     }
 
-    public async Task<ProjectDto> UpdateProjectAsync(int id, UpdateProjectRequest request, int userId)
+    public async Task<ProjectDto> UpdateProjectAsync(int id, UpdateProjectRequest request, int userId, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -131,7 +132,7 @@ public sealed class ProjectService : IProjectService
 
         var project = await m_Context.Projects
             .Include(p => p.Owner)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (project is null)
         {
@@ -149,15 +150,15 @@ public sealed class ProjectService : IProjectService
         project.IsActive = request.IsActive;
         project.UpdatedAt = DateTime.UtcNow;
 
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
-        return await MapToDtoAsync(project);
+        return await MapToDtoAsync(project, cancellationToken);
     }
 
-    public async Task DeleteProjectAsync(int id, int userId)
+    public async Task DeleteProjectAsync(int id, int userId, CancellationToken cancellationToken = default)
     {
         var project = await m_Context.Projects
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (project is null)
         {
@@ -171,8 +172,8 @@ public sealed class ProjectService : IProjectService
         }
 
         // Check for dependencies
-        var epicCount = await m_Context.Epics.CountAsync(e => e.ProjectId == id);
-        var workItemCount = await m_Context.WorkItems.CountAsync(w => w.ProjectId == id);
+        var epicCount = await m_Context.Epics.CountAsync(e => e.ProjectId == id, cancellationToken);
+        var workItemCount = await m_Context.WorkItems.CountAsync(w => w.ProjectId == id, cancellationToken);
 
         if (epicCount > 0 || workItemCount > 0)
         {
@@ -182,14 +183,14 @@ public sealed class ProjectService : IProjectService
         }
 
         m_Context.Projects.Remove(project);
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<ProjectDto> ArchiveProjectAsync(int id, int userId)
+    public async Task<ProjectDto> ArchiveProjectAsync(int id, int userId, CancellationToken cancellationToken = default)
     {
         var project = await m_Context.Projects
             .Include(p => p.Owner)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (project is null)
         {
@@ -204,16 +205,16 @@ public sealed class ProjectService : IProjectService
         project.IsArchived = true;
         project.UpdatedAt = DateTime.UtcNow;
 
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
-        return await MapToDtoAsync(project);
+        return await MapToDtoAsync(project, cancellationToken);
     }
 
-    public async Task<ProjectDto> UnarchiveProjectAsync(int id, int userId)
+    public async Task<ProjectDto> UnarchiveProjectAsync(int id, int userId, CancellationToken cancellationToken = default)
     {
         var project = await m_Context.Projects
             .Include(p => p.Owner)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (project is null)
         {
@@ -228,15 +229,15 @@ public sealed class ProjectService : IProjectService
         project.IsArchived = false;
         project.UpdatedAt = DateTime.UtcNow;
 
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
-        return await MapToDtoAsync(project);
+        return await MapToDtoAsync(project, cancellationToken);
     }
 
-    private async Task<ProjectDto> MapToDtoAsync(Project project)
+    private async Task<ProjectDto> MapToDtoAsync(Project project, CancellationToken cancellationToken = default)
     {
-        var epicCount = await m_Context.Epics.CountAsync(e => e.ProjectId == project.Id);
-        var workItemCount = await m_Context.WorkItems.CountAsync(w => w.ProjectId == project.Id);
+        var epicCount = await m_Context.Epics.CountAsync(e => e.ProjectId == project.Id, cancellationToken);
+        var workItemCount = await m_Context.WorkItems.CountAsync(w => w.ProjectId == project.Id, cancellationToken);
 
         return new ProjectDto
         {

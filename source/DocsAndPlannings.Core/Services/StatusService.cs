@@ -19,27 +19,27 @@ public sealed class StatusService : IStatusService
         m_Context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
-    public async Task<IReadOnlyList<StatusDto>> GetAllStatusesAsync()
+    public async Task<IReadOnlyList<StatusDto>> GetAllStatusesAsync(CancellationToken cancellationToken = default)
     {
         var statuses = await m_Context.Statuses
             .AsNoTracking()
             .Where(s => s.IsActive)
             .OrderBy(s => s.OrderIndex)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return statuses.Select(MapToDto).ToList();
     }
 
-    public async Task<StatusDto?> GetStatusByIdAsync(int id)
+    public async Task<StatusDto?> GetStatusByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var status = await m_Context.Statuses
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == id);
+            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
         return status != null ? MapToDto(status) : null;
     }
 
-    public async Task<StatusDto> CreateStatusAsync(CreateStatusRequest request)
+    public async Task<StatusDto> CreateStatusAsync(CreateStatusRequest request, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -48,7 +48,7 @@ public sealed class StatusService : IStatusService
 
         // Check for duplicate name
         var exists = await m_Context.Statuses
-            .AnyAsync(s => s.Name == request.Name);
+            .AnyAsync(s => s.Name == request.Name, cancellationToken);
 
         if (exists)
         {
@@ -68,12 +68,12 @@ public sealed class StatusService : IStatusService
         };
 
         m_Context.Statuses.Add(status);
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
         return MapToDto(status);
     }
 
-    public async Task<StatusDto> UpdateStatusAsync(int id, UpdateStatusRequest request)
+    public async Task<StatusDto> UpdateStatusAsync(int id, UpdateStatusRequest request, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -81,7 +81,7 @@ public sealed class StatusService : IStatusService
         }
 
         var status = await m_Context.Statuses
-            .FirstOrDefaultAsync(s => s.Id == id);
+            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
         if (status is null)
         {
@@ -90,7 +90,7 @@ public sealed class StatusService : IStatusService
 
         // Check for duplicate name (excluding current status)
         var exists = await m_Context.Statuses
-            .AnyAsync(s => s.Name == request.Name && s.Id != id);
+            .AnyAsync(s => s.Name == request.Name && s.Id != id, cancellationToken);
 
         if (exists)
         {
@@ -105,15 +105,15 @@ public sealed class StatusService : IStatusService
         status.IsCancelledStatus = request.IsCancelledStatus;
         status.IsActive = request.IsActive;
 
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
         return MapToDto(status);
     }
 
-    public async Task DeleteStatusAsync(int id)
+    public async Task DeleteStatusAsync(int id, CancellationToken cancellationToken = default)
     {
         var status = await m_Context.Statuses
-            .FirstOrDefaultAsync(s => s.Id == id);
+            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
         if (status is null)
         {
@@ -121,8 +121,8 @@ public sealed class StatusService : IStatusService
         }
 
         // Check if status is in use
-        var epicCount = await m_Context.Epics.CountAsync(e => e.StatusId == id);
-        var workItemCount = await m_Context.WorkItems.CountAsync(w => w.StatusId == id);
+        var epicCount = await m_Context.Epics.CountAsync(e => e.StatusId == id, cancellationToken);
+        var workItemCount = await m_Context.WorkItems.CountAsync(w => w.StatusId == id, cancellationToken);
 
         if (epicCount > 0 || workItemCount > 0)
         {
@@ -131,22 +131,22 @@ public sealed class StatusService : IStatusService
         }
 
         m_Context.Statuses.Remove(status);
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<StatusDto>> GetAllowedTransitionsAsync(int fromStatusId)
+    public async Task<IReadOnlyList<StatusDto>> GetAllowedTransitionsAsync(int fromStatusId, CancellationToken cancellationToken = default)
     {
         var transitions = await m_Context.StatusTransitions
             .AsNoTracking()
             .Include(t => t.ToStatus)
             .Where(t => t.FromStatusId == fromStatusId && t.IsAllowed)
             .Select(t => t.ToStatus)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return transitions.Select(MapToDto).ToList();
     }
 
-    public async Task<bool> ValidateTransitionAsync(int fromStatusId, int toStatusId)
+    public async Task<bool> ValidateTransitionAsync(int fromStatusId, int toStatusId, CancellationToken cancellationToken = default)
     {
         // Same status is always allowed
         if (fromStatusId == toStatusId)
@@ -159,14 +159,14 @@ public sealed class StatusService : IStatusService
             .AsNoTracking()
             .FirstOrDefaultAsync(t =>
                 t.FromStatusId == fromStatusId &&
-                t.ToStatusId == toStatusId);
+                t.ToStatusId == toStatusId, cancellationToken);
 
         // If no explicit rule exists, allow transition (permissive by default)
         // If rule exists, respect the IsAllowed flag
         return transition?.IsAllowed ?? true;
     }
 
-    public async Task<StatusTransitionDto> CreateStatusTransitionAsync(CreateStatusTransitionRequest request)
+    public async Task<StatusTransitionDto> CreateStatusTransitionAsync(CreateStatusTransitionRequest request, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -174,8 +174,8 @@ public sealed class StatusService : IStatusService
         }
 
         // Validate source and target statuses exist
-        var fromStatus = await m_Context.Statuses.FindAsync(request.FromStatusId);
-        var toStatus = await m_Context.Statuses.FindAsync(request.ToStatusId);
+        var fromStatus = await m_Context.Statuses.FindAsync(new object[] { request.FromStatusId }, cancellationToken);
+        var toStatus = await m_Context.Statuses.FindAsync(new object[] { request.ToStatusId }, cancellationToken);
 
         if (fromStatus is null)
         {
@@ -189,7 +189,7 @@ public sealed class StatusService : IStatusService
 
         // Check for duplicate transition
         var exists = await m_Context.StatusTransitions
-            .AnyAsync(t => t.FromStatusId == request.FromStatusId && t.ToStatusId == request.ToStatusId);
+            .AnyAsync(t => t.FromStatusId == request.FromStatusId && t.ToStatusId == request.ToStatusId, cancellationToken);
 
         if (exists)
         {
@@ -206,7 +206,7 @@ public sealed class StatusService : IStatusService
         };
 
         m_Context.StatusTransitions.Add(transition);
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
         return new StatusTransitionDto
         {
@@ -220,10 +220,10 @@ public sealed class StatusService : IStatusService
         };
     }
 
-    public async Task CreateDefaultStatusesAsync()
+    public async Task CreateDefaultStatusesAsync(CancellationToken cancellationToken = default)
     {
         // Check if statuses already exist
-        var hasStatuses = await m_Context.Statuses.AnyAsync();
+        var hasStatuses = await m_Context.Statuses.AnyAsync(cancellationToken);
         if (hasStatuses)
         {
             return; // Already initialized
@@ -277,7 +277,7 @@ public sealed class StatusService : IStatusService
         };
 
         m_Context.Statuses.AddRange(defaultStatuses);
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
     }
 
     private static StatusDto MapToDto(Status status)

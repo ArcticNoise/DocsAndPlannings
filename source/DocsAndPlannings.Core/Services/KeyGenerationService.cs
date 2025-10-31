@@ -23,14 +23,15 @@ public class KeyGenerationService : IKeyGenerationService
     /// Generates a unique key for an epic in the format: {PROJECT_KEY}-EPIC-{number}
     /// </summary>
     /// <param name="projectId">The ID of the project</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation</param>
     /// <returns>A unique epic key</returns>
-    public async Task<string> GenerateEpicKeyAsync(int projectId)
+    public async Task<string> GenerateEpicKeyAsync(int projectId, CancellationToken cancellationToken = default)
     {
         var project = await _context.Projects
             .AsNoTracking()
             .Where(p => p.Id == projectId)
             .Select(p => p.Key)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (project == null)
         {
@@ -39,26 +40,22 @@ public class KeyGenerationService : IKeyGenerationService
 
         // Find the highest epic number for this project
         var prefix = $"{project}-EPIC-";
-        var maxNumber = await _context.Epics
+        var keys = await _context.Epics
             .AsNoTracking()
             .Where(e => e.ProjectId == projectId && e.Key.StartsWith(prefix))
             .Select(e => e.Key)
-            .ToListAsync()
-            .ContinueWith(task =>
-            {
-                var keys = task.Result;
-                if (!keys.Any())
-                {
-                    return 0;
-                }
+            .ToListAsync(cancellationToken);
 
-                return keys
-                    .Select(k => k.Substring(prefix.Length))
-                    .Where(s => int.TryParse(s, out _))
-                    .Select(int.Parse)
-                    .DefaultIfEmpty(0)
-                    .Max();
-            });
+        var maxNumber = 0;
+        if (keys.Any())
+        {
+            maxNumber = keys
+                .Select(k => k.Substring(prefix.Length))
+                .Where(s => int.TryParse(s, out _))
+                .Select(int.Parse)
+                .DefaultIfEmpty(0)
+                .Max();
+        }
 
         var nextNumber = maxNumber + 1;
         return $"{prefix}{nextNumber}";
@@ -68,14 +65,15 @@ public class KeyGenerationService : IKeyGenerationService
     /// Generates a unique key for a work item in the format: {PROJECT_KEY}-{number}
     /// </summary>
     /// <param name="projectId">The ID of the project</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation</param>
     /// <returns>A unique work item key</returns>
-    public async Task<string> GenerateWorkItemKeyAsync(int projectId)
+    public async Task<string> GenerateWorkItemKeyAsync(int projectId, CancellationToken cancellationToken = default)
     {
         var project = await _context.Projects
             .AsNoTracking()
             .Where(p => p.Id == projectId)
             .Select(p => p.Key)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (project == null)
         {
@@ -84,26 +82,22 @@ public class KeyGenerationService : IKeyGenerationService
 
         // Find the highest work item number for this project
         var prefix = $"{project}-";
-        var maxNumber = await _context.WorkItems
+        var keys = await _context.WorkItems
             .AsNoTracking()
             .Where(w => w.ProjectId == projectId && w.Key.StartsWith(prefix))
             .Select(w => w.Key)
-            .ToListAsync()
-            .ContinueWith(task =>
-            {
-                var keys = task.Result;
-                if (!keys.Any())
-                {
-                    return 0;
-                }
+            .ToListAsync(cancellationToken);
 
-                return keys
-                    .Select(k => k.Substring(prefix.Length))
-                    .Where(s => int.TryParse(s, out _))
-                    .Select(int.Parse)
-                    .DefaultIfEmpty(0)
-                    .Max();
-            });
+        var maxNumber = 0;
+        if (keys.Any())
+        {
+            maxNumber = keys
+                .Select(k => k.Substring(prefix.Length))
+                .Where(s => int.TryParse(s, out _))
+                .Select(int.Parse)
+                .DefaultIfEmpty(0)
+                .Max();
+        }
 
         var nextNumber = maxNumber + 1;
         return $"{prefix}{nextNumber}";

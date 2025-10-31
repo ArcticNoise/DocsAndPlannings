@@ -15,7 +15,7 @@ public sealed class CommentService : ICommentService
         m_Context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
-    public async Task<CommentDto> CreateCommentAsync(int workItemId, CreateCommentRequest request, int authorId)
+    public async Task<CommentDto> CreateCommentAsync(int workItemId, CreateCommentRequest request, int authorId, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -23,14 +23,14 @@ public sealed class CommentService : ICommentService
         }
 
         // Validate work item exists
-        var workItem = await m_Context.WorkItems.FindAsync(workItemId);
+        var workItem = await m_Context.WorkItems.FindAsync(new object[] { workItemId }, cancellationToken);
         if (workItem is null)
         {
             throw new NotFoundException($"Work item with ID {workItemId} not found");
         }
 
         // Validate author exists
-        var author = await m_Context.Users.FindAsync(authorId);
+        var author = await m_Context.Users.FindAsync(new object[] { authorId }, cancellationToken);
         if (author is null)
         {
             throw new NotFoundException($"User with ID {authorId} not found");
@@ -47,34 +47,34 @@ public sealed class CommentService : ICommentService
         };
 
         m_Context.WorkItemComments.Add(comment);
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
         return MapToDto(comment, author);
     }
 
-    public async Task<IReadOnlyList<CommentDto>> GetCommentsByWorkItemIdAsync(int workItemId)
+    public async Task<IReadOnlyList<CommentDto>> GetCommentsByWorkItemIdAsync(int workItemId, CancellationToken cancellationToken = default)
     {
         var comments = await m_Context.WorkItemComments
             .Include(c => c.Author)
             .AsNoTracking()
             .Where(c => c.WorkItemId == workItemId)
             .OrderBy(c => c.CreatedAt)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return comments.Select(c => MapToDto(c, c.Author)).ToList();
     }
 
-    public async Task<CommentDto?> GetCommentByIdAsync(int id)
+    public async Task<CommentDto?> GetCommentByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var comment = await m_Context.WorkItemComments
             .Include(c => c.Author)
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         return comment != null ? MapToDto(comment, comment.Author) : null;
     }
 
-    public async Task<CommentDto> UpdateCommentAsync(int id, UpdateCommentRequest request, int userId)
+    public async Task<CommentDto> UpdateCommentAsync(int id, UpdateCommentRequest request, int userId, CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -83,7 +83,7 @@ public sealed class CommentService : ICommentService
 
         var comment = await m_Context.WorkItemComments
             .Include(c => c.Author)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (comment is null)
         {
@@ -100,16 +100,16 @@ public sealed class CommentService : ICommentService
         comment.UpdatedAt = DateTime.UtcNow;
         comment.IsEdited = true;
 
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
 
         return MapToDto(comment, comment.Author);
     }
 
-    public async Task DeleteCommentAsync(int id, int userId)
+    public async Task DeleteCommentAsync(int id, int userId, CancellationToken cancellationToken = default)
     {
         var comment = await m_Context.WorkItemComments
             .Include(c => c.Author)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (comment is null)
         {
@@ -124,7 +124,7 @@ public sealed class CommentService : ICommentService
         }
 
         m_Context.WorkItemComments.Remove(comment);
-        await m_Context.SaveChangesAsync();
+        await m_Context.SaveChangesAsync(cancellationToken);
     }
 
     private static CommentDto MapToDto(WorkItemComment comment, User author)
