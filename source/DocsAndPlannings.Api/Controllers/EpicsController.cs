@@ -27,6 +27,11 @@ public sealed class EpicsController : BaseApiController
     [HttpGet("{id}")]
     public async Task<ActionResult<EpicDto>> GetEpic(int id)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid epic ID: {id}. ID must be a positive integer.");
+        }
+
         var epic = await m_EpicService.GetEpicByIdAsync(id);
         if (epic is null)
         {
@@ -55,6 +60,21 @@ public sealed class EpicsController : BaseApiController
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
     {
+        if (projectId.HasValue && projectId.Value <= 0)
+        {
+            return BadRequest($"Invalid project ID: {projectId.Value}. ID must be a positive integer.");
+        }
+
+        if (statusId.HasValue && statusId.Value <= 0)
+        {
+            return BadRequest($"Invalid status ID: {statusId.Value}. ID must be a positive integer.");
+        }
+
+        if (assigneeId.HasValue && assigneeId.Value <= 0)
+        {
+            return BadRequest($"Invalid assignee ID: {assigneeId.Value}. ID must be a positive integer.");
+        }
+
         var epics = await m_EpicService.GetAllEpicsAsync(projectId, statusId, assigneeId, isActive, page, pageSize);
         return Ok(epics);
     }
@@ -62,6 +82,11 @@ public sealed class EpicsController : BaseApiController
     [HttpPut("{id}")]
     public async Task<ActionResult<EpicDto>> UpdateEpic(int id, [FromBody] UpdateEpicRequest request)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid epic ID: {id}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         var epic = await m_EpicService.UpdateEpicAsync(id, request, userId);
         return Ok(epic);
@@ -70,6 +95,11 @@ public sealed class EpicsController : BaseApiController
     [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteEpic(int id)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid epic ID: {id}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         await m_EpicService.DeleteEpicAsync(id, userId);
         return NoContent();
@@ -78,6 +108,16 @@ public sealed class EpicsController : BaseApiController
     [HttpPut("{id}/assign")]
     public async Task<ActionResult<EpicDto>> AssignEpic(int id, [FromBody] int? assigneeId)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid epic ID: {id}. ID must be a positive integer.");
+        }
+
+        if (assigneeId.HasValue && assigneeId.Value <= 0)
+        {
+            return BadRequest($"Invalid assignee ID: {assigneeId.Value}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         var epic = await m_EpicService.AssignEpicAsync(id, assigneeId, userId);
         return Ok(epic);
@@ -86,6 +126,16 @@ public sealed class EpicsController : BaseApiController
     [HttpPut("{id}/status")]
     public async Task<ActionResult<EpicDto>> UpdateEpicStatus(int id, [FromBody] int statusId)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid epic ID: {id}. ID must be a positive integer.");
+        }
+
+        if (statusId <= 0)
+        {
+            return BadRequest($"Invalid status ID: {statusId}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         var epic = await m_EpicService.UpdateEpicStatusAsync(id, statusId, userId);
         return Ok(epic);

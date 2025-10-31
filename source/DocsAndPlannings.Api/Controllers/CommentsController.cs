@@ -19,6 +19,11 @@ public sealed class CommentsController : BaseApiController
     [HttpPost("workitem/{workItemId}")]
     public async Task<ActionResult<CommentDto>> CreateComment(int workItemId, [FromBody] CreateCommentRequest request)
     {
+        if (workItemId <= 0)
+        {
+            return BadRequest($"Invalid work item ID: {workItemId}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         var comment = await m_CommentService.CreateCommentAsync(workItemId, request, userId);
         return CreatedAtAction(nameof(GetComment), new { id = comment.Id }, comment);
@@ -27,6 +32,11 @@ public sealed class CommentsController : BaseApiController
     [HttpGet("{id}")]
     public async Task<ActionResult<CommentDto>> GetComment(int id)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid comment ID: {id}. ID must be a positive integer.");
+        }
+
         var comment = await m_CommentService.GetCommentByIdAsync(id);
         if (comment is null)
         {
@@ -38,6 +48,11 @@ public sealed class CommentsController : BaseApiController
     [HttpGet("workitem/{workItemId}")]
     public async Task<ActionResult<IReadOnlyList<CommentDto>>> GetCommentsByWorkItem(int workItemId)
     {
+        if (workItemId <= 0)
+        {
+            return BadRequest($"Invalid work item ID: {workItemId}. ID must be a positive integer.");
+        }
+
         var comments = await m_CommentService.GetCommentsByWorkItemIdAsync(workItemId);
         return Ok(comments);
     }
@@ -45,6 +60,11 @@ public sealed class CommentsController : BaseApiController
     [HttpPut("{id}")]
     public async Task<ActionResult<CommentDto>> UpdateComment(int id, [FromBody] UpdateCommentRequest request)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid comment ID: {id}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         var comment = await m_CommentService.UpdateCommentAsync(id, request, userId);
         return Ok(comment);
@@ -53,6 +73,11 @@ public sealed class CommentsController : BaseApiController
     [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteComment(int id)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid comment ID: {id}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         await m_CommentService.DeleteCommentAsync(id, userId);
         return NoContent();

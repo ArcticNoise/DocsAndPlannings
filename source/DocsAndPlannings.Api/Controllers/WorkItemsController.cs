@@ -27,6 +27,11 @@ public sealed class WorkItemsController : BaseApiController
     [HttpGet("{id}")]
     public async Task<ActionResult<WorkItemDto>> GetWorkItem(int id)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid work item ID: {id}. ID must be a positive integer.");
+        }
+
         var workItem = await m_WorkItemService.GetWorkItemByIdAsync(id);
         if (workItem is null)
         {
@@ -56,6 +61,11 @@ public sealed class WorkItemsController : BaseApiController
     [HttpPut("{id}")]
     public async Task<ActionResult<WorkItemDto>> UpdateWorkItem(int id, [FromBody] UpdateWorkItemRequest request)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid work item ID: {id}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         var workItem = await m_WorkItemService.UpdateWorkItemAsync(id, request, userId);
         return Ok(workItem);
@@ -64,6 +74,11 @@ public sealed class WorkItemsController : BaseApiController
     [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteWorkItem(int id)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid work item ID: {id}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         await m_WorkItemService.DeleteWorkItemAsync(id, userId);
         return NoContent();
@@ -72,6 +87,16 @@ public sealed class WorkItemsController : BaseApiController
     [HttpPut("{id}/assign")]
     public async Task<ActionResult<WorkItemDto>> AssignWorkItem(int id, [FromBody] int? assigneeId)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid work item ID: {id}. ID must be a positive integer.");
+        }
+
+        if (assigneeId.HasValue && assigneeId.Value <= 0)
+        {
+            return BadRequest($"Invalid assignee ID: {assigneeId.Value}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         var workItem = await m_WorkItemService.AssignWorkItemAsync(id, assigneeId, userId);
         return Ok(workItem);
@@ -80,6 +105,16 @@ public sealed class WorkItemsController : BaseApiController
     [HttpPut("{id}/status")]
     public async Task<ActionResult<WorkItemDto>> UpdateWorkItemStatus(int id, [FromBody] int statusId)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid work item ID: {id}. ID must be a positive integer.");
+        }
+
+        if (statusId <= 0)
+        {
+            return BadRequest($"Invalid status ID: {statusId}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         var workItem = await m_WorkItemService.UpdateWorkItemStatusAsync(id, statusId, userId);
         return Ok(workItem);
@@ -88,6 +123,16 @@ public sealed class WorkItemsController : BaseApiController
     [HttpPut("{id}/parent")]
     public async Task<ActionResult<WorkItemDto>> UpdateWorkItemParent(int id, [FromBody] int? parentWorkItemId)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid work item ID: {id}. ID must be a positive integer.");
+        }
+
+        if (parentWorkItemId.HasValue && parentWorkItemId.Value <= 0)
+        {
+            return BadRequest($"Invalid parent work item ID: {parentWorkItemId.Value}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         var workItem = await m_WorkItemService.UpdateWorkItemParentAsync(id, parentWorkItemId, userId);
         return Ok(workItem);

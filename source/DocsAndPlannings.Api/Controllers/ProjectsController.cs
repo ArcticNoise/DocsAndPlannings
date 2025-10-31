@@ -27,6 +27,11 @@ public sealed class ProjectsController : BaseApiController
     [HttpGet("{id}")]
     public async Task<ActionResult<ProjectDto>> GetProject(int id)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid project ID: {id}. ID must be a positive integer.");
+        }
+
         var project = await m_ProjectService.GetProjectByIdAsync(id);
         if (project is null)
         {
@@ -43,6 +48,11 @@ public sealed class ProjectsController : BaseApiController
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
     {
+        if (ownerId.HasValue && ownerId.Value <= 0)
+        {
+            return BadRequest($"Invalid owner ID: {ownerId.Value}. ID must be a positive integer.");
+        }
+
         var projects = await m_ProjectService.GetAllProjectsAsync(ownerId, isActive, isArchived, page, pageSize);
         return Ok(projects);
     }
@@ -50,6 +60,11 @@ public sealed class ProjectsController : BaseApiController
     [HttpPut("{id}")]
     public async Task<ActionResult<ProjectDto>> UpdateProject(int id, [FromBody] UpdateProjectRequest request)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid project ID: {id}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         var project = await m_ProjectService.UpdateProjectAsync(id, request, userId);
         return Ok(project);
@@ -58,6 +73,11 @@ public sealed class ProjectsController : BaseApiController
     [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteProject(int id)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid project ID: {id}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         await m_ProjectService.DeleteProjectAsync(id, userId);
         return NoContent();
@@ -66,6 +86,11 @@ public sealed class ProjectsController : BaseApiController
     [HttpPost("{id}/archive")]
     public async Task<ActionResult<ProjectDto>> ArchiveProject(int id)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid project ID: {id}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         var project = await m_ProjectService.ArchiveProjectAsync(id, userId);
         return Ok(project);
@@ -74,6 +99,11 @@ public sealed class ProjectsController : BaseApiController
     [HttpPost("{id}/unarchive")]
     public async Task<ActionResult<ProjectDto>> UnarchiveProject(int id)
     {
+        if (id <= 0)
+        {
+            return BadRequest($"Invalid project ID: {id}. ID must be a positive integer.");
+        }
+
         var userId = GetCurrentUserId();
         var project = await m_ProjectService.UnarchiveProjectAsync(id, userId);
         return Ok(project);
