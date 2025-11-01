@@ -57,6 +57,9 @@ builder.Services.AddScoped<IEpicService, EpicService>();
 builder.Services.AddScoped<IWorkItemService, WorkItemService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
 
+// Phase 4: Kanban board services
+builder.Services.AddScoped<IBoardService, BoardService>();
+
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
