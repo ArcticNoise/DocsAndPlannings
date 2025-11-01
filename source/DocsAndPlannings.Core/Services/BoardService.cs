@@ -235,7 +235,7 @@ public sealed class BoardService : IBoardService
                         Type = w.Type,
                         Priority = w.Priority,
                         StatusId = w.StatusId,
-                        OrderIndex = null // Will be implemented in Sprint 2.4
+                        OrderIndex = null
                     })
                     .ToList();
 
