@@ -1,6 +1,6 @@
-@model ErrorViewModel
+@model DocsAndPlannings.Web.Models.ErrorViewModel
 @{
-    ViewData["Title"] = Model?.Title ?? "Error";
+    ViewData["Title"] = "Server Error";
 }
 
 <div class="container mt-5">
@@ -9,28 +9,26 @@
             <div class="card shadow">
                 <div class="card-body text-center p-5">
                     <div class="mb-4">
-                        <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 5rem;"></i>
+                        <i class="bi bi-server text-danger" style="font-size: 5rem;"></i>
                     </div>
 
-                    <h1 class="display-4 text-danger mb-3">@(Model?.Title ?? "Error")</h1>
+                    <h1 class="display-4 mb-3">500</h1>
+                    <h2 class="mb-4">@Model.Title</h2>
 
-                    @if (Model?.StatusCode > 0)
-                    {
-                        <h3 class="text-muted mb-4">Error @Model.StatusCode</h3>
-                    }
+                    <p class="lead mb-4">@Model.Message</p>
 
-                    <p class="lead mb-4">@(Model?.Message ?? "An error occurred while processing your request.")</p>
-
-                    @if (!string.IsNullOrEmpty(Model?.Details))
+                    @if (!string.IsNullOrEmpty(Model.Details))
                     {
                         <p class="text-muted mb-4">@Model.Details</p>
                     }
 
-                    @if (Model?.ShowRequestId ?? false)
+                    @if (Model.ShowRequestId)
                     {
                         <div class="alert alert-light">
                             <small>
-                                <strong>Request ID:</strong> <code>@Model!.RequestId</code>
+                                <strong>Request ID:</strong> <code>@Model.RequestId</code>
+                                <br />
+                                Please provide this ID if you contact support.
                             </small>
                         </div>
                     }
@@ -39,8 +37,8 @@
                         <a asp-controller="Dashboard" asp-action="Index" class="btn btn-primary me-2">
                             <i class="bi bi-house"></i> Go to Dashboard
                         </a>
-                        <a href="javascript:history.back()" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left"></i> Go Back
+                        <a href="javascript:location.reload()" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise"></i> Try Again
                         </a>
                     </div>
                 </div>

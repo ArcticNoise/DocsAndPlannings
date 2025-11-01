@@ -1,0 +1,30 @@
+@model DocsAndPlannings.Core.Models.WorkItemType
+
+@{
+    string badgeClass = "";
+    string iconClass = "";
+
+    switch (Model)
+    {
+        case DocsAndPlannings.Core.Models.WorkItemType.Task:
+            badgeClass = "bg-primary";
+            iconClass = "bi-check-square";
+            break;
+        case DocsAndPlannings.Core.Models.WorkItemType.Bug:
+            badgeClass = "bg-danger";
+            iconClass = "bi-bug";
+            break;
+        case DocsAndPlannings.Core.Models.WorkItemType.Subtask:
+            badgeClass = "bg-secondary";
+            iconClass = "bi-list-task";
+            break;
+        default:
+            badgeClass = "bg-secondary";
+            iconClass = "bi-question-circle";
+            break;
+    }
+}
+
+<span class="badge @badgeClass">
+    <i class="bi @iconClass"></i> @Model.ToString()
+</span>

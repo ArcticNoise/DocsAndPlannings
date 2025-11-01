@@ -1,0 +1,170 @@
+@using DocsAndPlannings.Core.Models
+@model DocsAndPlannings.Web.ViewModels.WorkItems.WorkItemEditorViewModel
+@{
+    ViewData["Title"] = "Edit Work Item";
+    var projectName = Model.AvailableProjects.FirstOrDefault(p => p.Id == Model.ProjectId)?.Name ?? "Unknown";
+    var projectKey = Model.AvailableProjects.FirstOrDefault(p => p.Id == Model.ProjectId)?.Key ?? "???";
+    var epicName = Model.AvailableEpics.FirstOrDefault(e => e.Id == Model.EpicId)?.Summary ?? "None";
+    var parentWorkItemName = Model.AvailableParentWorkItems.FirstOrDefault(wi => wi.Id == Model.ParentWorkItemId)?.Key ?? "None";
+}
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="bi bi-pencil-square"></i> Edit Work Item</h2>
+                <p class="text-muted">Project: @projectName <span class="badge bg-secondary">@projectKey</span></p>
+            </div>
+            <div>
+                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Edit" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="ProjectId" />
+                    <input type="hidden" asp-for="Type" />
+                    <input type="hidden" asp-for="EpicId" />
+                    <input type="hidden" asp-for="ParentWorkItemId" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Project</label>
+                            <input type="text" class="form-control" value="@projectName (@projectKey)" readonly disabled />
+                            <small class="text-muted">Project cannot be changed</small>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Type</label>
+                            <input type="text" class="form-control" value="@Model.Type" readonly disabled />
+                            <small class="text-muted">Type cannot be changed</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Summary" class="form-label"></label>
+                        <input asp-for="Summary" class="form-control" placeholder="Enter work item summary..." autofocus required />
+                        <span asp-validation-for="Summary" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label"></label>
+                        <textarea asp-for="Description" class="form-control" rows="6" placeholder="Enter work item description..."></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                        <small class="text-muted">Supports markdown formatting</small>
+                    </div>
+
+                    @if (Model.EpicId.HasValue)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Epic</label>
+                            <input type="text" class="form-control" value="@epicName" readonly disabled />
+                            <small class="text-muted">Epic cannot be changed</small>
+                        </div>
+                    }
+
+                    @if (Model.Type == WorkItemType.Subtask && Model.ParentWorkItemId.HasValue)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Parent Work Item</label>
+                            <input type="text" class="form-control" value="@parentWorkItemName" readonly disabled />
+                            <small class="text-muted">Parent work item cannot be changed</small>
+                        </div>
+                    }
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="StatusId" class="form-label"></label>
+                            <select asp-for="StatusId" class="form-select" required>
+                                <option value="">-- Select Status --</option>
+                                @foreach (var status in Model.AvailableStatuses)
+                                {
+                                    <option value="@status.Id">@status.Name</option>
+                                }
+                            </select>
+                            <span asp-validation-for="StatusId" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="AssigneeId" class="form-label"></label>
+                            <select asp-for="AssigneeId" class="form-select">
+                                <option value="">Unassigned</option>
+                                @foreach (var user in Model.AvailableUsers)
+                                {
+                                    <option value="@user.Id">@user.FirstName @user.LastName</option>
+                                }
+                            </select>
+                            <span asp-validation-for="AssigneeId" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Priority" class="form-label"></label>
+                            <select asp-for="Priority" class="form-select" required>
+                                <option value="1">1 - Highest</option>
+                                <option value="2">2 - High</option>
+                                <option value="3">3 - Medium</option>
+                                <option value="4">4 - Low</option>
+                                <option value="5">5 - Lowest</option>
+                            </select>
+                            <span asp-validation-for="Priority" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="DueDate" class="form-label"></label>
+                            <input asp-for="DueDate" type="date" class="form-control" />
+                            <span asp-validation-for="DueDate" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-save"></i> Save Changes
+                        </button>
+                        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary btn-lg">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Work Item Info</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Type:</strong> @Model.Type</p>
+                <p><strong>Project:</strong> @projectKey</p>
+                @if (Model.EpicId.HasValue)
+                {
+                    <p><strong>Epic:</strong> @epicName</p>
+                }
+                @if (Model.Type == WorkItemType.Subtask && Model.ParentWorkItemId.HasValue)
+                {
+                    <p><strong>Parent:</strong> @parentWorkItemName</p>
+                }
+                <p class="mb-0"><strong>Note:</strong> Project, Type, Epic, and Parent cannot be changed after creation.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

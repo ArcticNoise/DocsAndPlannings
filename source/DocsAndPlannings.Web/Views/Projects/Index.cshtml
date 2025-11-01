@@ -1,0 +1,118 @@
+@model DocsAndPlannings.Web.ViewModels.Projects.ProjectListViewModel
+@{
+    ViewData["Title"] = "Projects";
+}
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h2><i class="bi bi-folder"></i> Projects</h2>
+        <p class="text-muted">Manage your projects and track progress</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Create Project
+        </a>
+    </div>
+</div>
+
+@* Search and Filter *@
+<div class="card mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="SearchQuery" class="form-label">Search</label>
+                <input asp-for="SearchQuery" class="form-control" placeholder="Search projects..." />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label d-block">&nbsp;</label>
+                <div class="form-check">
+                    <input asp-for="ActiveOnly" class="form-check-input" type="checkbox" />
+                    <label asp-for="ActiveOnly" class="form-check-label">
+                        Active Only
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label d-block">&nbsp;</label>
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-search"></i> Search
+                </button>
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* Results *@
+@if (Model.HasProjects)
+{
+    <div class="row">
+        @foreach (var project in Model.Projects)
+        {
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title mb-0">
+                                <a asp-action="Details" asp-route-id="@project.Id">
+                                    @project.Name
+                                </a>
+                            </h5>
+                            @if (project.IsArchived)
+                            {
+                                <span class="badge bg-secondary">Archived</span>
+                            }
+                            else if (project.IsActive)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning">Inactive</span>
+                            }
+                        </div>
+                        <div class="mb-3">
+                            <span class="badge bg-primary">@project.Key</span>
+                        </div>
+                        <p class="card-text text-muted small">
+                            <i class="bi bi-person"></i> @project.OwnerName
+                        </p>
+                        <div class="d-flex justify-content-between text-muted small">
+                            <span><i class="bi bi-diagram-2"></i> @project.EpicCount Epics</span>
+                            <span><i class="bi bi-list-task"></i> @project.WorkItemCount Items</span>
+                        </div>
+                        <p class="card-text text-muted small mt-2">
+                            <i class="bi bi-clock"></i> Updated @project.UpdatedAt.ToString("MMM dd, yyyy")
+                        </p>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="btn-group btn-group-sm w-100">
+                            <a asp-action="Details" asp-route-id="@project.Id" class="btn btn-outline-primary">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                            <a asp-action="Edit" asp-route-id="@project.Id" class="btn btn-outline-secondary">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        @if (!string.IsNullOrEmpty(Model.SearchQuery))
+        {
+            <text><strong>No projects found.</strong> Try adjusting your search criteria.</text>
+        }
+        else
+        {
+            <text><strong>No projects yet.</strong> Create your first project to get started.</text>
+        }
+    </div>
+}

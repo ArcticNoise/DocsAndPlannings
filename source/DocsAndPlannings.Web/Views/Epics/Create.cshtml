@@ -1,0 +1,129 @@
+@model DocsAndPlannings.Web.ViewModels.Epics.EpicEditorViewModel
+@{
+    ViewData["Title"] = "Create Epic";
+}
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="bi bi-plus-circle"></i> Create Epic</h2>
+                <p class="text-muted">Create a new epic to organize work items</p>
+            </div>
+            <div>
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="ProjectId" class="form-label"></label>
+                        <select asp-for="ProjectId" class="form-select" required>
+                            <option value="">-- Select Project --</option>
+                            @foreach (var project in Model.AvailableProjects)
+                            {
+                                <option value="@project.Id">@project.Name (@project.Key)</option>
+                            }
+                        </select>
+                        <span asp-validation-for="ProjectId" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Summary" class="form-label"></label>
+                        <input asp-for="Summary" class="form-control" placeholder="Enter epic summary..." autofocus required />
+                        <span asp-validation-for="Summary" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label"></label>
+                        <textarea asp-for="Description" class="form-control" rows="6" placeholder="Enter epic description..."></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="AssigneeId" class="form-label"></label>
+                            <select asp-for="AssigneeId" class="form-select">
+                                <option value="">Unassigned</option>
+                                @foreach (var user in Model.AvailableUsers)
+                                {
+                                    <option value="@user.Id">@user.FirstName @user.LastName</option>
+                                }
+                            </select>
+                            <span asp-validation-for="AssigneeId" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Priority" class="form-label"></label>
+                            <select asp-for="Priority" class="form-select" required>
+                                <option value="1">1 - Highest</option>
+                                <option value="2">2 - High</option>
+                                <option value="3" selected>3 - Medium</option>
+                                <option value="4">4 - Low</option>
+                                <option value="5">5 - Lowest</option>
+                            </select>
+                            <span asp-validation-for="Priority" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="StartDate" class="form-label"></label>
+                            <input asp-for="StartDate" type="date" class="form-control" />
+                            <span asp-validation-for="StartDate" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="DueDate" class="form-label"></label>
+                            <input asp-for="DueDate" type="date" class="form-control" />
+                            <span asp-validation-for="DueDate" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-save"></i> Create Epic
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary btn-lg">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> About Epics</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>What is an Epic?</strong></p>
+                <p class="small">An epic is a large body of work that can be broken down into smaller work items (tasks, bugs, subtasks).</p>
+                <p><strong>Priority Levels:</strong></p>
+                <ul class="small">
+                    <li><strong>1 - Highest:</strong> Critical, must be done first</li>
+                    <li><strong>2 - High:</strong> Important, prioritize highly</li>
+                    <li><strong>3 - Medium:</strong> Normal priority</li>
+                    <li><strong>4 - Low:</strong> Can be deferred</li>
+                    <li><strong>5 - Lowest:</strong> Nice to have</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

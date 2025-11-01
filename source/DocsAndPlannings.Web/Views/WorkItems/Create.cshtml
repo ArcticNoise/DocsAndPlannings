@@ -1,0 +1,208 @@
+@using DocsAndPlannings.Core.Models
+@model DocsAndPlannings.Web.ViewModels.WorkItems.WorkItemEditorViewModel
+@{
+    ViewData["Title"] = "Create Work Item";
+}
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="bi bi-plus-circle"></i> Create Work Item</h2>
+                <p class="text-muted">Create a new task, bug, or subtask</p>
+            </div>
+            <div>
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Create" method="post" id="createWorkItemForm">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="ProjectId" class="form-label"></label>
+                            <select asp-for="ProjectId" class="form-select" required id="projectSelect">
+                                <option value="">-- Select Project --</option>
+                                @foreach (var project in Model.AvailableProjects)
+                                {
+                                    <option value="@project.Id">@project.Name (@project.Key)</option>
+                                }
+                            </select>
+                            <span asp-validation-for="ProjectId" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Type" class="form-label"></label>
+                            <select asp-for="Type" class="form-select" required id="typeSelect">
+                                <option value="">-- Select Type --</option>
+                                <option value="@((int)WorkItemType.Task)">Task</option>
+                                <option value="@((int)WorkItemType.Bug)">Bug</option>
+                                <option value="@((int)WorkItemType.Subtask)">Subtask</option>
+                            </select>
+                            <span asp-validation-for="Type" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Summary" class="form-label"></label>
+                        <input asp-for="Summary" class="form-control" placeholder="Enter work item summary..." autofocus required />
+                        <span asp-validation-for="Summary" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label"></label>
+                        <textarea asp-for="Description" class="form-control" rows="6" placeholder="Enter work item description..."></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                        <small class="text-muted">Supports markdown formatting</small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="EpicId" class="form-label"></label>
+                            <select asp-for="EpicId" class="form-select" id="epicSelect">
+                                <option value="">No Epic</option>
+                                @foreach (var epic in Model.AvailableEpics)
+                                {
+                                    <option value="@epic.Id">@epic.Key - @epic.Summary</option>
+                                }
+                            </select>
+                            <span asp-validation-for="EpicId" class="text-danger"></span>
+                            <small class="text-muted">Optional: Link to an epic</small>
+                        </div>
+
+                        <div class="col-md-6 mb-3" id="parentWorkItemContainer" style="display: none;">
+                            <label asp-for="ParentWorkItemId" class="form-label"></label>
+                            <select asp-for="ParentWorkItemId" class="form-select" id="parentWorkItemSelect">
+                                <option value="">-- Select Parent --</option>
+                                @foreach (var workItem in Model.AvailableParentWorkItems)
+                                {
+                                    <option value="@workItem.Id">@workItem.Key - @workItem.Summary</option>
+                                }
+                            </select>
+                            <span asp-validation-for="ParentWorkItemId" class="text-danger"></span>
+                            <small class="text-muted">Required for subtasks</small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="AssigneeId" class="form-label"></label>
+                            <select asp-for="AssigneeId" class="form-select">
+                                <option value="">Unassigned</option>
+                                @foreach (var user in Model.AvailableUsers)
+                                {
+                                    <option value="@user.Id">@user.FirstName @user.LastName</option>
+                                }
+                            </select>
+                            <span asp-validation-for="AssigneeId" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="ReporterId" class="form-label"></label>
+                            <select asp-for="ReporterId" class="form-select" required>
+                                <option value="">-- Select Reporter --</option>
+                                @foreach (var user in Model.AvailableUsers)
+                                {
+                                    <option value="@user.Id">@user.FirstName @user.LastName</option>
+                                }
+                            </select>
+                            <span asp-validation-for="ReporterId" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Priority" class="form-label"></label>
+                            <select asp-for="Priority" class="form-select" required>
+                                <option value="1">1 - Highest</option>
+                                <option value="2">2 - High</option>
+                                <option value="3" selected>3 - Medium</option>
+                                <option value="4">4 - Low</option>
+                                <option value="5">5 - Lowest</option>
+                            </select>
+                            <span asp-validation-for="Priority" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="DueDate" class="form-label"></label>
+                            <input asp-for="DueDate" type="date" class="form-control" />
+                            <span asp-validation-for="DueDate" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-save"></i> Create Work Item
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary btn-lg">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Work Item Types</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Task:</strong></p>
+                <p class="small">A unit of work to be completed. Can have subtasks.</p>
+                <p><strong>Bug:</strong></p>
+                <p class="small">A defect or issue that needs to be fixed. Can have subtasks.</p>
+                <p><strong>Subtask:</strong></p>
+                <p class="small">A smaller unit of work that belongs to a parent task or bug.</p>
+                <hr />
+                <p><strong>Priority Levels:</strong></p>
+                <ul class="small">
+                    <li><strong>1 - Highest:</strong> Critical</li>
+                    <li><strong>2 - High:</strong> Important</li>
+                    <li><strong>3 - Medium:</strong> Normal</li>
+                    <li><strong>4 - Low:</strong> Can be deferred</li>
+                    <li><strong>5 - Lowest:</strong> Nice to have</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const typeSelect = document.getElementById('typeSelect');
+            const parentWorkItemContainer = document.getElementById('parentWorkItemContainer');
+            const parentWorkItemSelect = document.getElementById('parentWorkItemSelect');
+
+            typeSelect.addEventListener('change', function() {
+                const selectedType = parseInt(this.value);
+                const subtaskType = @((int)WorkItemType.Subtask);
+
+                if (selectedType === subtaskType) {
+                    parentWorkItemContainer.style.display = 'block';
+                    parentWorkItemSelect.required = true;
+                } else {
+                    parentWorkItemContainer.style.display = 'none';
+                    parentWorkItemSelect.required = false;
+                    parentWorkItemSelect.value = '';
+                }
+            });
+
+            if (typeSelect.value) {
+                typeSelect.dispatchEvent(new Event('change'));
+            }
+        });
+    </script>
+}

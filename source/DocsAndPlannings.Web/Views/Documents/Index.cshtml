@@ -1,0 +1,200 @@
+@model DocsAndPlannings.Web.ViewModels.Documents.DocumentListViewModel
+@{
+    ViewData["Title"] = "Documents";
+}
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h2><i class="bi bi-file-text"></i> Documents</h2>
+        <p class="text-muted">Browse and search documentation</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Create Document
+        </a>
+    </div>
+</div>
+
+@* Search and Filter *@
+<div class="card mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-3">
+            <div class="col-md-4">
+                <label asp-for="SearchQuery" class="form-label">Search</label>
+                <input asp-for="SearchQuery" class="form-control" placeholder="Search titles and content..." />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="SelectedTagId" class="form-label">Filter by Tag</label>
+                <select asp-for="SelectedTagId" class="form-select">
+                    <option value="">All Tags</option>
+                    @foreach (var tag in Model.AvailableTags)
+                    {
+                        <option value="@tag.Id">@tag.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label d-block">&nbsp;</label>
+                <div class="form-check">
+                    <input asp-for="PublishedOnly" class="form-check-input" type="checkbox" />
+                    <label asp-for="PublishedOnly" class="form-check-label">
+                        Published Only
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label d-block">&nbsp;</label>
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-search"></i> Search
+                </button>
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* Results *@
+@if (Model.Documents.Any())
+{
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Author</th>
+                            <th>Tags</th>
+                            <th>Version</th>
+                            <th>Status</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var doc in Model.Documents)
+                        {
+                            <tr>
+                                <td>
+                                    <a asp-action="View" asp-route-id="@doc.Id" class="fw-bold">
+                                        @doc.Title
+                                    </a>
+                                    @if (doc.ParentDocumentId.HasValue)
+                                    {
+                                        <span class="badge bg-secondary ms-1">
+                                            <i class="bi bi-diagram-3"></i> Child
+                                        </span>
+                                    }
+                                </td>
+                                <td>@doc.AuthorName</td>
+                                <td>
+                                    @foreach (var tag in doc.Tags)
+                                    {
+                                        <span class="badge bg-info me-1" style="@(tag.Color != null ? $"background-color: {tag.Color} !important;" : "")">
+                                            @tag.Name
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">v@doc.CurrentVersion</span>
+                                </td>
+                                <td>
+                                    @if (doc.IsPublished)
+                                    {
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Published
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning">
+                                            <i class="bi bi-pencil"></i> Draft
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        @doc.UpdatedAt.ToString("MMM dd, yyyy HH:mm")
+                                    </small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a asp-action="View" asp-route-id="@doc.Id" class="btn btn-outline-primary" title="View">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a asp-action="Edit" asp-route-id="@doc.Id" class="btn btn-outline-secondary" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @* Pagination *@
+    @if (Model.TotalPages > 1)
+    {
+        <nav aria-label="Document pagination" class="mt-4">
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                    <a class="page-link" asp-action="Index"
+                       asp-route-searchQuery="@Model.SearchQuery"
+                       asp-route-tagId="@Model.SelectedTagId"
+                       asp-route-publishedOnly="@Model.PublishedOnly"
+                       asp-route-pageNumber="@(Model.PageNumber - 1)"
+                       asp-route-pageSize="@Model.PageSize">
+                        <i class="bi bi-chevron-left"></i> Previous
+                    </a>
+                </li>
+
+                @for (int i = Math.Max(1, Model.PageNumber - 2); i <= Math.Min(Model.TotalPages, Model.PageNumber + 2); i++)
+                {
+                    <li class="page-item @(i == Model.PageNumber ? "active" : "")">
+                        <a class="page-link" asp-action="Index"
+                           asp-route-searchQuery="@Model.SearchQuery"
+                           asp-route-tagId="@Model.SelectedTagId"
+                           asp-route-publishedOnly="@Model.PublishedOnly"
+                           asp-route-pageNumber="@i"
+                           asp-route-pageSize="@Model.PageSize">
+                            @i
+                        </a>
+                    </li>
+                }
+
+                <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                    <a class="page-link" asp-action="Index"
+                       asp-route-searchQuery="@Model.SearchQuery"
+                       asp-route-tagId="@Model.SelectedTagId"
+                       asp-route-publishedOnly="@Model.PublishedOnly"
+                       asp-route-pageNumber="@(Model.PageNumber + 1)"
+                       asp-route-pageSize="@Model.PageSize">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+            </ul>
+            <p class="text-center text-muted">
+                Showing @((Model.PageNumber - 1) * Model.PageSize + 1) to @Math.Min(Model.PageNumber * Model.PageSize, Model.TotalCount) of @Model.TotalCount documents
+            </p>
+        </nav>
+    }
+}
+else
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        @if (!string.IsNullOrEmpty(Model.SearchQuery) || Model.SelectedTagId.HasValue)
+        {
+            <text><strong>No documents found.</strong> Try adjusting your search criteria.</text>
+        }
+        else
+        {
+            <text><strong>No documents yet.</strong> Create your first document to get started.</text>
+        }
+    </div>
+}

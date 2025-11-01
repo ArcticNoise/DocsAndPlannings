@@ -1,2 +1,341 @@
-﻿<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+@*
+    Client-Side Validation Scripts
+    Include this partial in views that require form validation.
+    Usage: @section Scripts { <partial name="_ValidationScriptsPartial" /> }
+*@
+
+@* Core jQuery Validation Libraries *@
+<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
 <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
+
+@* Additional Validation Methods (email, url, date, number formats, etc.) *@
+<script src="~/lib/jquery-validation/dist/additional-methods.min.js"></script>
+
+@* Custom Validation Configuration *@
+<script>
+    (function () {
+        'use strict';
+
+        // ========================================
+        // jQuery Validation Configuration
+        // ========================================
+
+        if ($.validator) {
+            // Default validation options
+            $.validator.setDefaults({
+                // Error element styling
+                errorElement: 'div',
+                errorClass: 'invalid-feedback',
+
+                // Highlighting invalid fields
+                highlight: function (element, errorClass, validClass) {
+                    $(element)
+                        .addClass('is-invalid')
+                        .removeClass('is-valid');
+                },
+
+                // Removing highlight from valid fields
+                unhighlight: function (element, errorClass, validClass) {
+                    $(element)
+                        .removeClass('is-invalid')
+                        .addClass('is-valid');
+                },
+
+                // Error placement for Bootstrap 5
+                errorPlacement: function (error, element) {
+                    // Handle different input types
+                    if (element.parent('.input-group').length) {
+                        // For input groups, place error after the input group
+                        error.insertAfter(element.parent());
+                    } else if (element.is(':radio') || element.is(':checkbox')) {
+                        // For radio and checkbox, place error after the parent label or div
+                        error.insertAfter(element.parent());
+                    } else {
+                        // Default placement
+                        error.insertAfter(element);
+                    }
+                },
+
+                // Submit handler
+                submitHandler: function (form) {
+                    // Show loading state on submit button
+                    const submitBtn = $(form).find('button[type="submit"], input[type="submit"]').first();
+                    if (submitBtn.length && window.DocsAndPlannings && window.DocsAndPlannings.FormUtils) {
+                        window.DocsAndPlannings.FormUtils.setButtonLoading(submitBtn[0], 'Submitting...');
+                    }
+
+                    form.submit();
+                }
+            });
+
+            // ========================================
+            // Custom Validation Methods
+            // ========================================
+
+            /**
+             * Password strength validator
+             * Requires at least 8 characters, including uppercase, lowercase, digit, and special character
+             */
+            $.validator.addMethod('strongpassword', function (value, element) {
+                if (!value) return true; // Allow empty for optional fields
+
+                // At least 8 characters
+                if (value.length < 8) return false;
+
+                // At least one uppercase letter
+                if (!/[A-Z]/.test(value)) return false;
+
+                // At least one lowercase letter
+                if (!/[a-z]/.test(value)) return false;
+
+                // At least one digit
+                if (!/\d/.test(value)) return false;
+
+                // At least one special character
+                if (!/[@@$!%*?&#^()_+=\-\[\]{}|\\:;"'<>,.\/]/.test(value)) return false;
+
+                return true;
+            }, 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.');
+
+            /**
+             * Username format validator
+             * Alphanumeric, underscore, hyphen only. 3-20 characters.
+             */
+            $.validator.addMethod('validusername', function (value, element) {
+                if (!value) return true; // Allow empty for optional fields
+                return /^[a-zA-Z0-9_-]{3,20}$/.test(value);
+            }, 'Username must be 3-20 characters and contain only letters, numbers, underscores, or hyphens.');
+
+            /**
+             * Future date validator
+             * Ensures date is in the future
+             */
+            $.validator.addMethod('futuredate', function (value, element) {
+                if (!value) return true; // Allow empty for optional fields
+
+                const inputDate = new Date(value);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Reset time to compare dates only
+
+                return inputDate > today;
+            }, 'Date must be in the future.');
+
+            /**
+             * Past date validator
+             * Ensures date is in the past
+             */
+            $.validator.addMethod('pastdate', function (value, element) {
+                if (!value) return true; // Allow empty for optional fields
+
+                const inputDate = new Date(value);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Reset time to compare dates only
+
+                return inputDate < today;
+            }, 'Date must be in the past.');
+
+            /**
+             * File size validator
+             * Validates file input size (in bytes)
+             * Usage: data-val-filesize="5242880" (5MB)
+             */
+            $.validator.addMethod('filesize', function (value, element, param) {
+                if (!element.files || element.files.length === 0) return true;
+
+                const file = element.files[0];
+                const maxSize = parseInt(param, 10);
+
+                return file.size <= maxSize;
+            }, function (param, element) {
+                const maxSizeMB = (parseInt(param, 10) / 1048576).toFixed(1);
+                return `File size must not exceed ${maxSizeMB}MB.`;
+            });
+
+            /**
+             * File extension validator
+             * Validates allowed file extensions
+             * Usage: data-val-fileextension=".jpg,.png,.pdf"
+             */
+            $.validator.addMethod('fileextension', function (value, element, param) {
+                if (!value) return true;
+
+                const allowedExtensions = param.toLowerCase().split(',');
+                const fileExtension = value.substring(value.lastIndexOf('.')).toLowerCase();
+
+                return allowedExtensions.includes(fileExtension);
+            }, function (param) {
+                return `Allowed file types: ${param}`;
+            });
+
+            /**
+             * Confirm password validator
+             * Ensures password confirmation matches password field
+             * Usage: data-val-equalto="#Password"
+             */
+            $.validator.addMethod('equalto', function (value, element, param) {
+                return value === $(param).val();
+            }, 'Passwords do not match.');
+
+            /**
+             * URL slug validator
+             * Validates URL-friendly slugs (lowercase, numbers, hyphens)
+             */
+            $.validator.addMethod('slug', function (value, element) {
+                if (!value) return true;
+                return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
+            }, 'Must be a valid URL slug (lowercase letters, numbers, and hyphens only).');
+
+            /**
+             * Phone number validator (US format)
+             * Validates various US phone number formats
+             */
+            $.validator.addMethod('usphone', function (value, element) {
+                if (!value) return true;
+                // Matches: (123) 456-7890, 123-456-7890, 123.456.7890, 1234567890
+                return /^(\+?1[-.\s]?)?(\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}$/.test(value);
+            }, 'Please enter a valid US phone number.');
+
+            /**
+             * Alpha-numeric with spaces
+             * Allows letters, numbers, and spaces only
+             */
+            $.validator.addMethod('alphanumericspace', function (value, element) {
+                if (!value) return true;
+                return /^[a-zA-Z0-9\s]+$/.test(value);
+            }, 'Only letters, numbers, and spaces are allowed.');
+
+            /**
+             * Integer validator
+             * Ensures value is a valid integer
+             */
+            $.validator.addMethod('integer', function (value, element) {
+                if (!value) return true;
+                return /^-?\d+$/.test(value);
+            }, 'Please enter a valid integer.');
+
+            /**
+             * Decimal with precision
+             * Validates decimal numbers with specific precision
+             * Usage: data-val-decimal="2" (2 decimal places)
+             */
+            $.validator.addMethod('decimalprecision', function (value, element, param) {
+                if (!value) return true;
+                const regex = new RegExp(`^-?\\d+(\\.\\d{1,${param}})?$`);
+                return regex.test(value);
+            }, function (param) {
+                return `Please enter a number with up to ${param} decimal places.`;
+            });
+
+            // ========================================
+            // Unobtrusive Validation Adapters
+            // ========================================
+
+            // These adapters connect data-* attributes to custom validators
+
+            if ($.validator.unobtrusive) {
+                $.validator.unobtrusive.adapters.add('strongpassword', function (options) {
+                    options.rules['strongpassword'] = true;
+                    options.messages['strongpassword'] = options.message;
+                });
+
+                $.validator.unobtrusive.adapters.add('validusername', function (options) {
+                    options.rules['validusername'] = true;
+                    options.messages['validusername'] = options.message;
+                });
+
+                $.validator.unobtrusive.adapters.add('futuredate', function (options) {
+                    options.rules['futuredate'] = true;
+                    options.messages['futuredate'] = options.message;
+                });
+
+                $.validator.unobtrusive.adapters.add('pastdate', function (options) {
+                    options.rules['pastdate'] = true;
+                    options.messages['pastdate'] = options.message;
+                });
+
+                $.validator.unobtrusive.adapters.add('filesize', ['size'], function (options) {
+                    options.rules['filesize'] = options.params.size;
+                    options.messages['filesize'] = options.message;
+                });
+
+                $.validator.unobtrusive.adapters.add('fileextension', ['extensions'], function (options) {
+                    options.rules['fileextension'] = options.params.extensions;
+                    options.messages['fileextension'] = options.message;
+                });
+
+                $.validator.unobtrusive.adapters.add('slug', function (options) {
+                    options.rules['slug'] = true;
+                    options.messages['slug'] = options.message;
+                });
+
+                $.validator.unobtrusive.adapters.add('usphone', function (options) {
+                    options.rules['usphone'] = true;
+                    options.messages['usphone'] = options.message;
+                });
+
+                $.validator.unobtrusive.adapters.add('alphanumericspace', function (options) {
+                    options.rules['alphanumericspace'] = true;
+                    options.messages['alphanumericspace'] = options.message;
+                });
+
+                $.validator.unobtrusive.adapters.add('integer', function (options) {
+                    options.rules['integer'] = true;
+                    options.messages['integer'] = options.message;
+                });
+
+                $.validator.unobtrusive.adapters.add('decimalprecision', ['precision'], function (options) {
+                    options.rules['decimalprecision'] = options.params.precision;
+                    options.messages['decimalprecision'] = options.message;
+                });
+            }
+
+            // ========================================
+            // Initialize Validation on Dynamic Content
+            // ========================================
+
+            /**
+             * Re-parse validation attributes for dynamically added content
+             * Call this after adding new form fields via AJAX
+             */
+            window.revalidateForm = function (formSelector) {
+                const form = $(formSelector);
+                if (form.length) {
+                    // Remove existing validation
+                    form.removeData('validator');
+                    form.removeData('unobtrusiveValidation');
+
+                    // Re-parse validation attributes
+                    $.validator.unobtrusive.parse(form);
+                }
+            };
+
+            // ========================================
+            // Form Validation Events
+            // ========================================
+
+            // Remove validation highlighting on focus
+            $(document).on('focus', '.is-invalid', function () {
+                $(this).removeClass('is-invalid');
+            });
+
+            // Auto-validate on blur for better UX
+            $(document).on('blur', 'input[data-val="true"], textarea[data-val="true"], select[data-val="true"]', function () {
+                const form = $(this).closest('form');
+                if (form.length && form.data('validator')) {
+                    form.validate().element(this);
+                }
+            });
+
+            // Log validation errors to console in development
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                $(document).on('invalid-form.validate', 'form', function (event, validator) {
+                    console.group('Form Validation Errors:');
+                    $.each(validator.errorList, function (index, error) {
+                        console.error(`${error.element.name}: ${error.message}`);
+                    });
+                    console.groupEnd();
+                });
+            }
+        }
+    })();
+</script>

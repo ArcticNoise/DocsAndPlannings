@@ -1,0 +1,88 @@
+@model DocsAndPlannings.Web.ViewModels.Projects.ProjectEditorViewModel
+@{
+    ViewData["Title"] = "Create Project";
+}
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="bi bi-folder-plus"></i> Create New Project</h2>
+                <p class="text-muted">Create a new project to organize your work</p>
+            </div>
+            <div>
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Key" class="form-label"></label>
+                        <input asp-for="Key" class="form-control" placeholder="e.g., PROJ, DEV, DOCS" maxlength="10" style="text-transform: uppercase;" autofocus />
+                        <span asp-validation-for="Key" class="text-danger"></span>
+                        <small class="text-muted">Must start with a letter and contain only uppercase letters and numbers</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Name" class="form-label"></label>
+                        <input asp-for="Name" class="form-control" placeholder="Enter project name..." />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label"></label>
+                        <textarea asp-for="Description" class="form-control" rows="5" placeholder="Enter project description..."></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-save"></i> Create Project
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary btn-lg">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Project Information</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Project Key:</strong> A unique identifier for your project (e.g., PROJ, DEV)</p>
+                <p><strong>Project Name:</strong> A descriptive name for your project</p>
+                <p><strong>Description:</strong> Optional detailed information about the project</p>
+                <p class="mb-0"><strong>Note:</strong> You will be set as the project owner automatically.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const keyInput = document.querySelector('input[name="Key"]');
+            if (keyInput) {
+                keyInput.addEventListener('input', function() {
+                    this.value = this.value.toUpperCase();
+                });
+            }
+        });
+    </script>
+}

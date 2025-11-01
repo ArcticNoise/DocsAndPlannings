@@ -1,0 +1,45 @@
+@model int
+
+@{
+    string badgeClass = "";
+    string priorityText = "";
+    string iconClass = "";
+
+    switch (Model)
+    {
+        case 1:
+            badgeClass = "bg-danger";
+            priorityText = "Highest";
+            iconClass = "bi-arrow-up-circle-fill";
+            break;
+        case 2:
+            badgeClass = "bg-warning";
+            priorityText = "High";
+            iconClass = "bi-arrow-up-circle";
+            break;
+        case 3:
+            badgeClass = "bg-info";
+            priorityText = "Medium";
+            iconClass = "bi-dash-circle";
+            break;
+        case 4:
+            badgeClass = "bg-secondary";
+            priorityText = "Low";
+            iconClass = "bi-arrow-down-circle";
+            break;
+        case 5:
+            badgeClass = "bg-dark";
+            priorityText = "Lowest";
+            iconClass = "bi-arrow-down-circle-fill";
+            break;
+        default:
+            badgeClass = "bg-secondary";
+            priorityText = "Unknown";
+            iconClass = "bi-question-circle";
+            break;
+    }
+}
+
+<span class="badge @badgeClass">
+    <i class="bi @iconClass"></i> @priorityText
+</span>

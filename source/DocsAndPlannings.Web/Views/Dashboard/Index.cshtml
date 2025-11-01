@@ -1,0 +1,218 @@
+@model DocsAndPlannings.Web.ViewModels.DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="container-fluid mt-4">
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5">
+                <i class="bi bi-speedometer2"></i> Welcome back, @Model.UserName!
+            </h1>
+            <p class="lead text-muted">Here's an overview of your workspace</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(TempData["SuccessMessage"] as string))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(TempData["ErrorMessage"] as string))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card border-primary shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Documents</h6>
+                            <h2 class="mb-0">@Model.Stats.TotalDocuments</h2>
+                        </div>
+                        <div class="text-primary">
+                            <i class="bi bi-file-text" style="font-size: 3rem;"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <a asp-controller="Documents" asp-action="Index" class="text-decoration-none small">
+                        View all <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card border-success shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Projects</h6>
+                            <h2 class="mb-0">@Model.Stats.TotalProjects</h2>
+                        </div>
+                        <div class="text-success">
+                            <i class="bi bi-folder" style="font-size: 3rem;"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <a asp-controller="Projects" asp-action="Index" class="text-decoration-none small">
+                        View all <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card border-warning shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Assigned to Me</h6>
+                            <h2 class="mb-0">@Model.Stats.AssignedWorkItems</h2>
+                        </div>
+                        <div class="text-warning">
+                            <i class="bi bi-person-check" style="font-size: 3rem;"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <a asp-controller="WorkItems" asp-action="Index" class="text-decoration-none small">
+                        View all <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card border-info shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Active Work Items</h6>
+                            <h2 class="mb-0">@Model.Stats.ActiveWorkItems</h2>
+                        </div>
+                        <div class="text-info">
+                            <i class="bi bi-list-task" style="font-size: 3rem;"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <a asp-controller="Board" asp-action="Index" class="text-decoration-none small">
+                        View board <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row">
+        <!-- Recent Activity -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history"></i> Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.RecentActivity.Any())
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var activity in Model.RecentActivity)
+                            {
+                                <a href="@activity.Url" class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between align-items-start">
+                                        <div class="d-flex align-items-start">
+                                            <div class="me-3 text-primary">
+                                                <i class="@activity.Icon" style="font-size: 1.5rem;"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1">@activity.Title</h6>
+                                                <p class="mb-1 text-muted small">@activity.Description</p>
+                                                <small class="text-muted">
+                                                    <span class="badge bg-secondary">@activity.Type</span>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                            <p class="mt-2">No recent activity</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightning"></i> Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a asp-controller="Documents" asp-action="Create" class="btn btn-outline-primary">
+                            <i class="bi bi-file-plus"></i> Create Document
+                        </a>
+                        <a asp-controller="Projects" asp-action="Create" class="btn btn-outline-success">
+                            <i class="bi bi-folder-plus"></i> Create Project
+                        </a>
+                        <a asp-controller="WorkItems" asp-action="Create" class="btn btn-outline-warning">
+                            <i class="bi bi-plus-circle"></i> Create Work Item
+                        </a>
+                        <hr />
+                        <a asp-controller="Board" asp-action="Index" class="btn btn-outline-info">
+                            <i class="bi bi-kanban"></i> Open Board
+                        </a>
+                        <a asp-controller="WorkItems" asp-action="Index" class="btn btn-outline-secondary">
+                            <i class="bi bi-search"></i> Search Work Items
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            @if (User.IsInRole("Admin"))
+            {
+                <div class="card shadow-sm mt-3">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-gear"></i> Admin Tools
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a asp-controller="Tags" asp-action="Index" class="btn btn-outline-dark btn-sm">
+                                <i class="bi bi-tags"></i> Manage Tags
+                            </a>
+                            <a asp-controller="Statuses" asp-action="Index" class="btn btn-outline-dark btn-sm">
+                                <i class="bi bi-toggle-on"></i> Manage Statuses
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

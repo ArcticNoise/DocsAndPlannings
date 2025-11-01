@@ -1,0 +1,168 @@
+@model DocsAndPlannings.Web.ViewModels.Kanban.BoardSettingsViewModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Edit Board Settings" : "Create Board";
+}
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="bi bi-gear"></i> @(Model.IsEdit ? "Edit Board Settings" : "Create Board")</h2>
+                <p class="text-muted">Project: @Model.ProjectName <span class="badge bg-secondary">@Model.ProjectKey</span></p>
+            </div>
+            <div>
+                <a asp-action="Index" asp-route-projectId="@Model.ProjectId" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Board
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="SaveSettings" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="ProjectId" />
+                    <input type="hidden" asp-for="ProjectName" />
+                    <input type="hidden" asp-for="ProjectKey" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Name" class="form-label"></label>
+                        <input asp-for="Name" class="form-control" placeholder="Enter board name..." autofocus required />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label"></label>
+                        <textarea asp-for="Description" class="form-control" rows="4"
+                                  placeholder="Enter board description..."></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+
+                    @if (Model.IsEdit && Model.Columns.Any())
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Board Columns</label>
+                            <div class="list-group">
+                                @foreach (var column in Model.Columns.OrderBy(c => c.OrderIndex))
+                                {
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-1">
+                                                    <span style="display: inline-block; width: 16px; height: 16px; background-color: @column.StatusColor; border-radius: 3px; margin-right: 8px;"></span>
+                                                    @column.StatusName
+                                                </h6>
+                                                <small class="text-muted">
+                                                    @if (column.WIPLimit.HasValue)
+                                                    {
+                                                        <text>WIP Limit: @column.WIPLimit</text>
+                                                    }
+                                                    else
+                                                    {
+                                                        <text>No WIP Limit</text>
+                                                    }
+                                                    @if (column.IsCollapsed)
+                                                    {
+                                                        <text>| Collapsed</text>
+                                                    }
+                                                </small>
+                                            </div>
+                                            <div>
+                                                <span class="badge bg-secondary">Order: @column.OrderIndex</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                            <small class="text-muted">Column settings can be adjusted from the board view</small>
+                        </div>
+                    }
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-save"></i> @(Model.IsEdit ? "Save Changes" : "Create Board")
+                        </button>
+                        <a asp-action="Index" asp-route-projectId="@Model.ProjectId" class="btn btn-secondary btn-lg">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> About Kanban Boards</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>What is a Kanban Board?</strong></p>
+                <p class="small">
+                    A kanban board visualizes your workflow by organizing work items into columns
+                    based on their status. Drag and drop cards between columns to update their progress.
+                </p>
+
+                <p><strong>Key Features:</strong></p>
+                <ul class="small">
+                    <li><strong>Columns:</strong> Represent workflow stages (statuses)</li>
+                    <li><strong>WIP Limits:</strong> Limit work in progress per column</li>
+                    <li><strong>Drag & Drop:</strong> Move items between columns easily</li>
+                    <li><strong>Filters:</strong> Filter by epic, assignee, or search</li>
+                    <li><strong>Quick Edit:</strong> Update work items without leaving the board</li>
+                </ul>
+
+                @if (Model.IsEdit)
+                {
+                    <hr />
+                    <form asp-action="DeleteBoard" method="post" onsubmit="return confirm('Are you sure you want to delete this board? This action cannot be undone.');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="projectId" value="@Model.ProjectId" />
+                        <button type="submit" class="btn btn-danger btn-sm w-100">
+                            <i class="bi bi-trash"></i> Delete Board
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+
+        @if (!Model.IsEdit)
+        {
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightbulb"></i> Default Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small">
+                        When you create a board, it will automatically include columns for all
+                        statuses configured in your project. You can customize each column's
+                        WIP limit and collapse state from the board view.
+                    </p>
+                    <p class="small mb-0">
+                        <strong>Available Statuses (@Model.AvailableStatuses.Count):</strong>
+                    </p>
+                    <ul class="small">
+                        @foreach (var status in Model.AvailableStatuses.Take(5))
+                        {
+                            <li>@status.Name</li>
+                        }
+                        @if (Model.AvailableStatuses.Count > 5)
+                        {
+                            <li class="text-muted">...and @(Model.AvailableStatuses.Count - 5) more</li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

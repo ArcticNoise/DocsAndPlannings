@@ -1,0 +1,175 @@
+@model DocsAndPlannings.Web.ViewModels.Epics.EpicListViewModel
+@{
+    ViewData["Title"] = "Epics";
+}
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="bi bi-diagram-2"></i> Epics</h2>
+                <p class="text-muted">Track and manage project epics</p>
+            </div>
+            <div>
+                <a asp-action="Create" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> New Epic
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Index" method="get" class="row g-3">
+                    <div class="col-md-6">
+                        <label for="searchQuery" class="form-label">Search</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="searchQuery" name="searchQuery"
+                                   value="@Model.SearchQuery" placeholder="Search by epic key or summary..." />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="projectId" class="form-label">Project</label>
+                        <select class="form-select" id="projectId" name="projectId">
+                            <option value="">All Projects</option>
+                            @foreach (var project in Model.AvailableProjects)
+                            {
+                                <option value="@project.Id" selected="@(Model.SelectedProjectId == project.Id)">
+                                    @project.Name (@project.Key)
+                                </option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-funnel"></i> Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        @if (Model.HasEpics)
+        {
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Key</th>
+                                    <th>Summary</th>
+                                    <th>Project</th>
+                                    <th>Status</th>
+                                    <th>Assignee</th>
+                                    <th>Priority</th>
+                                    <th>Progress</th>
+                                    <th>Due Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var epic in Model.Epics)
+                                {
+                                    <tr>
+                                        <td>
+                                            <a asp-action="Details" asp-route-id="@epic.Id" class="text-decoration-none">
+                                                <strong>@epic.Key</strong>
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a asp-action="Details" asp-route-id="@epic.Id" class="text-decoration-none">
+                                                @epic.Summary
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">-</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">@epic.StatusName</span>
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(epic.AssigneeName))
+                                            {
+                                                <span class="badge bg-light text-dark border">
+                                                    <i class="bi bi-person-fill"></i> @epic.AssigneeName
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">
+                                                    <i class="bi bi-person"></i> Unassigned
+                                                </span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @await Html.PartialAsync("_PriorityBadge", epic.Priority)
+                                        </td>
+                                        <td>
+                                            @{
+                                                int completionPercentage = epic.WorkItemCount > 0
+                                                    ? (int)Math.Round((double)epic.CompletedWorkItemCount / epic.WorkItemCount * 100)
+                                                    : 0;
+                                            }
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar" role="progressbar"
+                                                     style="width: @completionPercentage%"
+                                                     aria-valuenow="@completionPercentage" aria-valuemin="0" aria-valuemax="100">
+                                                    @completionPercentage%
+                                                </div>
+                                            </div>
+                                            <small class="text-muted">@epic.CompletedWorkItemCount / @epic.WorkItemCount items</small>
+                                        </td>
+                                        <td>
+                                            @if (epic.DueDate.HasValue)
+                                            {
+                                                var daysUntilDue = (epic.DueDate.Value.Date - DateTime.Today).Days;
+                                                var dueDateClass = daysUntilDue < 0 ? "text-danger" : (daysUntilDue <= 7 ? "text-warning" : "text-muted");
+                                                <span class="@dueDateClass">
+                                                    <i class="bi bi-calendar"></i> @epic.DueDate.Value.ToString("MMM dd, yyyy")
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">No due date</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-diagram-2" style="font-size: 4rem; color: #ccc;"></i>
+                    <h4 class="mt-3">No Epics Found</h4>
+                    <p class="text-muted">
+                        @if (!string.IsNullOrWhiteSpace(Model.SearchQuery) || Model.SelectedProjectId.HasValue)
+                        {
+                            <text>Try adjusting your filters or </text>
+                        }
+                        else
+                        {
+                            <text>Get started by creating your first epic.</text>
+                        }
+                    </p>
+                    <a asp-action="Create" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Create Epic
+                    </a>
+                </div>
+            </div>
+        }
+    </div>
+</div>

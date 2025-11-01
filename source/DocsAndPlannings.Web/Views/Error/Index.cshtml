@@ -1,6 +1,6 @@
-@model ErrorViewModel
+@model DocsAndPlannings.Web.Models.ErrorViewModel
 @{
-    ViewData["Title"] = Model?.Title ?? "Error";
+    ViewData["Title"] = Model.Title;
 }
 
 <div class="container mt-5">
@@ -12,25 +12,25 @@
                         <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 5rem;"></i>
                     </div>
 
-                    <h1 class="display-4 text-danger mb-3">@(Model?.Title ?? "Error")</h1>
+                    <h1 class="display-4 text-danger mb-3">@Model.Title</h1>
 
-                    @if (Model?.StatusCode > 0)
+                    @if (Model.StatusCode > 0)
                     {
                         <h3 class="text-muted mb-4">Error @Model.StatusCode</h3>
                     }
 
-                    <p class="lead mb-4">@(Model?.Message ?? "An error occurred while processing your request.")</p>
+                    <p class="lead mb-4">@Model.Message</p>
 
-                    @if (!string.IsNullOrEmpty(Model?.Details))
+                    @if (!string.IsNullOrEmpty(Model.Details))
                     {
                         <p class="text-muted mb-4">@Model.Details</p>
                     }
 
-                    @if (Model?.ShowRequestId ?? false)
+                    @if (Model.ShowRequestId)
                     {
                         <div class="alert alert-light">
                             <small>
-                                <strong>Request ID:</strong> <code>@Model!.RequestId</code>
+                                <strong>Request ID:</strong> <code>@Model.RequestId</code>
                             </small>
                         </div>
                     }

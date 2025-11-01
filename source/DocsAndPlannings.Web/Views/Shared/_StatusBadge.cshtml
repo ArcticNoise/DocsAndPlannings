@@ -1,0 +1,23 @@
+@model DocsAndPlannings.Core.DTOs.Statuses.StatusDto
+
+@{
+    string badgeClass = "bg-secondary";
+
+    if (Model.IsCompletedStatus)
+    {
+        badgeClass = "bg-success";
+    }
+    else if (Model.IsCancelledStatus)
+    {
+        badgeClass = "bg-danger";
+    }
+    else if (!string.Equals(Model.Name, "To Do", StringComparison.OrdinalIgnoreCase)
+             && !string.Equals(Model.Name, "Backlog", StringComparison.OrdinalIgnoreCase))
+    {
+        badgeClass = "bg-primary";
+    }
+}
+
+<span class="badge @badgeClass" style="@(Model.Color != null ? $"background-color: {Model.Color} !important;" : "")">
+    @Model.Name
+</span>

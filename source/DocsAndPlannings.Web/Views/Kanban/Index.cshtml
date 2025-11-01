@@ -1,0 +1,350 @@
+@using DocsAndPlannings.Core.Models
+@model DocsAndPlannings.Web.ViewModels.Kanban.KanbanBoardViewModel
+@{
+    ViewData["Title"] = $"Kanban Board - {Model.ProjectName}";
+}
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2><i class="bi bi-kanban"></i> Kanban Board</h2>
+                <p class="text-muted">Project: @Model.ProjectName <span class="badge bg-secondary">@Model.ProjectKey</span></p>
+            </div>
+            <div>
+                <a asp-controller="Projects" asp-action="Details" asp-route-id="@Model.ProjectId" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Project
+                </a>
+                <a asp-action="Settings" asp-route-projectId="@Model.ProjectId" class="btn btn-primary">
+                    <i class="bi bi-gear"></i> Board Settings
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!Model.HasBoard)
+{
+    <div class="row">
+        <div class="col-md-12">
+            <div class="alert alert-info" role="alert">
+                <h4 class="alert-heading"><i class="bi bi-info-circle"></i> No Board Configured</h4>
+                <p>This project doesn't have a kanban board configured yet.</p>
+                <hr>
+                <p class="mb-0">
+                    <a asp-action="Settings" asp-route-projectId="@Model.ProjectId" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Create Board
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <form asp-action="Index" method="get" class="row g-3">
+                <input type="hidden" name="projectId" value="@Model.ProjectId" />
+
+                <div class="col-md-4">
+                    <label for="searchText" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="searchText" name="searchText"
+                           value="@Model.SearchText" placeholder="Search work items..." />
+                </div>
+
+                <div class="col-md-3">
+                    <label for="epicId" class="form-label">Epic</label>
+                    <select class="form-select" id="epicId" name="epicId">
+                        <option value="">All Epics</option>
+                        @foreach (var epic in Model.AvailableEpics)
+                        {
+                            <option value="@epic.Id" selected="@(Model.SelectedEpicId == epic.Id)">
+                                @epic.Key - @epic.Summary
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="assigneeId" class="form-label">Assignee</label>
+                    <select class="form-select" id="assigneeId" name="assigneeId">
+                        <option value="">All Assignees</option>
+                        @foreach (var user in Model.AvailableUsers)
+                        {
+                            <option value="@user.Id" selected="@(Model.SelectedAssigneeId == user.Id)">
+                                @user.FirstName @user.LastName
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Board Stats -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-muted">Total Items:</span>
+                            <strong>@Model.Board!.TotalItems</strong>
+                        </div>
+                        <div>
+                            <span class="text-muted">Columns:</span>
+                            <strong>@Model.Board.Columns.Count</strong>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(Model.SearchText) || Model.SelectedEpicId.HasValue || Model.SelectedAssigneeId.HasValue)
+                        {
+                            <div>
+                                <a asp-action="Index" asp-route-projectId="@Model.ProjectId" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i> Clear Filters
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kanban Board -->
+    <div class="kanban-board">
+        <div class="kanban-columns">
+            @foreach (var column in Model.Board.Columns.OrderBy(c => c.OrderIndex))
+            {
+                bool isOverWIPLimit = column.WIPLimit.HasValue && column.ItemCount > column.WIPLimit.Value;
+                string columnHeaderClass = isOverWIPLimit ? "kanban-column-header-warning" : "";
+
+                <div class="kanban-column @(column.IsCollapsed ? "kanban-column-collapsed" : "")"
+                     data-column-id="@column.Id"
+                     data-status-id="@column.StatusId">
+                    <div class="kanban-column-header @columnHeaderClass"
+                         style="border-left: 4px solid @column.StatusColor;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-0">@column.StatusName</h5>
+                                <small class="text-muted">
+                                    @column.ItemCount
+                                    @if (column.WIPLimit.HasValue)
+                                    {
+                                        <text>/ @column.WIPLimit</text>
+                                    }
+                                    items
+                                </small>
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-link text-dark" type="button"
+                                        data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item column-settings-trigger"
+                                           href="#"
+                                           data-column-id="@column.Id"
+                                           data-column-name="@column.StatusName"
+                                           data-wip-limit="@column.WIPLimit"
+                                           data-is-collapsed="@column.IsCollapsed.ToString().ToLower()">
+                                            <i class="bi bi-gear"></i> Settings
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item toggle-collapse-trigger"
+                                           href="#"
+                                           data-column-id="@column.Id">
+                                            <i class="bi bi-arrows-angle-contract"></i>
+                                            @(column.IsCollapsed ? "Expand" : "Collapse")
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (!column.IsCollapsed)
+                    {
+                        <div class="kanban-column-body" data-status-id="@column.StatusId">
+                            @foreach (var workItem in column.WorkItems)
+                            {
+                                <div class="kanban-card"
+                                     data-work-item-id="@workItem.Id"
+                                     data-status-id="@workItem.StatusId">
+                                    <div class="kanban-card-header">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                @await Html.PartialAsync("_WorkItemTypeBadge", workItem.Type)
+                                                <strong>@workItem.Key</strong>
+                                            </div>
+                                            <div>
+                                                @await Html.PartialAsync("_PriorityBadge", workItem.Priority)
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="kanban-card-body">
+                                        <p class="kanban-card-summary">@workItem.Summary</p>
+                                        @if (!string.IsNullOrWhiteSpace(workItem.AssigneeName))
+                                        {
+                                            <div class="kanban-card-assignee">
+                                                <i class="bi bi-person"></i>
+                                                <small>@workItem.AssigneeName</small>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="kanban-card-assignee text-muted">
+                                                <i class="bi bi-person"></i>
+                                                <small>Unassigned</small>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="kanban-card-actions">
+                                        <a href="#" class="btn btn-sm btn-link quick-edit-trigger"
+                                           data-work-item-id="@workItem.Id">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </a>
+                                        <a asp-controller="WorkItems" asp-action="Details"
+                                           asp-route-id="@workItem.Id" class="btn btn-sm btn-link">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </div>
+                                </div>
+                            }
+
+                            @if (column.ItemCount == 0)
+                            {
+                                <div class="kanban-column-empty">
+                                    <p class="text-muted text-center mb-0">No items</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Quick Edit Modal -->
+    <div class="modal fade" id="quickEditModal" tabindex="-1" aria-labelledby="quickEditModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="quickEditModalLabel">Quick Edit Work Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="quickEditForm">
+                        <input type="hidden" id="editWorkItemId" />
+
+                        <div class="mb-3">
+                            <label for="editWorkItemKey" class="form-label">Key</label>
+                            <input type="text" class="form-control" id="editWorkItemKey" readonly disabled />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="editSummary" class="form-label">Summary</label>
+                            <input type="text" class="form-control" id="editSummary" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="editStatusId" class="form-label">Status</label>
+                            <select class="form-select" id="editStatusId" required>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="editAssigneeId" class="form-label">Assignee</label>
+                            <select class="form-select" id="editAssigneeId">
+                                <option value="">Unassigned</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="editPriority" class="form-label">Priority</label>
+                            <select class="form-select" id="editPriority" required>
+                                <option value="1">1 - Highest</option>
+                                <option value="2">2 - High</option>
+                                <option value="3">3 - Medium</option>
+                                <option value="4">4 - Low</option>
+                                <option value="5">5 - Lowest</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveQuickEditBtn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Column Settings Modal -->
+    <div class="modal fade" id="columnSettingsModal" tabindex="-1" aria-labelledby="columnSettingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="columnSettingsModalLabel">Column Settings</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="columnSettingsForm">
+                        <input type="hidden" id="settingsColumnId" />
+
+                        <div class="mb-3">
+                            <label for="settingsColumnName" class="form-label">Column Name</label>
+                            <input type="text" class="form-control" id="settingsColumnName" readonly disabled />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="settingsWIPLimit" class="form-label">WIP Limit</label>
+                            <input type="number" class="form-control" id="settingsWIPLimit" min="0" max="999"
+                                   placeholder="No limit" />
+                            <small class="text-muted">Leave empty for no limit</small>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="settingsIsCollapsed" />
+                            <label class="form-check-label" for="settingsIsCollapsed">
+                                Collapsed by default
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveColumnSettingsBtn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script src="~/js/kanban.js" asp-append-version="true"></script>
+    <script>
+        const projectId = @Model.ProjectId;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            @if (Model.HasBoard)
+            {
+                <text>
+                // Initialize kanban board
+                KanbanBoard.init({
+                    projectId: projectId,
+                    boardId: @Model.Board!.BoardId
+                });
+                </text>
+            }
+        });
+    </script>
+}

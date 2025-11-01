@@ -1,0 +1,14 @@
+@model (int? AssigneeId, string? AssigneeName)
+
+@if (Model.AssigneeId.HasValue && !string.IsNullOrWhiteSpace(Model.AssigneeName))
+{
+    <span class="badge bg-light text-dark border">
+        <i class="bi bi-person-fill"></i> @Model.AssigneeName
+    </span>
+}
+else
+{
+    <span class="text-muted">
+        <i class="bi bi-person"></i> Unassigned
+    </span>
+}
