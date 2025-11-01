@@ -165,6 +165,22 @@ Create a centralized HTTP client service to communicate with the REST API backen
 - Implement error handling and response deserialization
 - Add retry logic for transient failures
 - Configure in Program.cs with DI
+- **PREREQUISITE - Configure CORS in API Project** (DocsAndPlannings.Api/Program.cs):
+  ```csharp
+  services.AddCors(options =>
+  {
+      options.AddPolicy("WebAppPolicy", builder =>
+      {
+          builder.WithOrigins("https://localhost:5001", "https://yourdomain.com")
+                 .AllowAnyHeader()
+                 .AllowAnyMethod()
+                 .AllowCredentials(); // Required for cookie-based auth
+      });
+  });
+
+  app.UseCors("WebAppPolicy");
+  ```
+  Note: Update origins list with actual Web app URLs (development and production)
 
 **Acceptance Criteria**:
 - [ ] ApiClient service implements GET, POST, PUT, DELETE methods
@@ -173,6 +189,8 @@ Create a centralized HTTP client service to communicate with the REST API backen
 - [ ] Returns null on 404, throws on other errors
 - [ ] Supports file upload/download
 - [ ] Registered as scoped service in DI
+- [ ] CORS configured in API project
+- [ ] Ajax calls from Web to API succeed without CORS errors
 
 **Testing Requirements**:
 - [ ] Unit tests for ApiClient methods
@@ -249,7 +267,14 @@ Implement authentication UI for login, registration, and logout.
   - `Login.cshtml` - login form with validation
   - `Register.cshtml` - registration form with validation
   - `Profile.cshtml` - user profile view/edit
-- Implement JWT token storage (cookies with HttpOnly flag)
+- Implement JWT token storage with secure cookie configuration:
+  - Access token lifetime: 1 hour
+  - Refresh token lifetime: 24 hours
+  - HttpOnly flag: true (prevent XSS access)
+  - Secure flag: true (HTTPS only)
+  - SameSite: Strict (CSRF protection)
+  - Automatic token refresh 5 minutes before expiration
+  - Store access and refresh tokens in separate secure cookies
 - Add client-side validation with jQuery Validation
 - Call API endpoints via ApiClient
 
@@ -346,6 +371,42 @@ Create user-friendly error pages for common HTTP errors.
   - Production: UseExceptionHandler with friendly page
   - UseStatusCodePagesWithReExecute for 404, 401, 403
 - Add custom error controller if needed
+- **Configure logging strategy**:
+  ```csharp
+  // In Program.cs
+  services.AddLogging(builder =>
+  {
+      builder.AddConsole();
+      builder.AddDebug();
+      if (app.Environment.IsProduction())
+      {
+          // Use Serilog or NLog for file-based logging
+          builder.AddFile("logs/webapp-{Date}.log");
+          // Consider: Application Insights, Sentry for production monitoring
+      }
+  });
+
+  // Centralized error handling with logging
+  app.UseExceptionHandler(errorApp =>
+  {
+      errorApp.Run(async context =>
+      {
+          var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+          var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+
+          logger.LogError(exception,
+              "Unhandled exception. User: {User}, Path: {Path}",
+              context.User.Identity?.Name ?? "Anonymous",
+              context.Request.Path);
+
+          // Redirect to error page
+          context.Response.Redirect("/Error");
+      });
+  });
+  ```
+- Configure log levels (Information, Warning, Error)
+- Set log retention policy (30 days recommended)
+- Add structured logging with user context
 
 **Acceptance Criteria**:
 - [ ] 404 page shows "Page Not Found" message with navigation
@@ -354,6 +415,10 @@ Create user-friendly error pages for common HTTP errors.
 - [ ] Error pages match site design and layout
 - [ ] Development mode shows detailed error information
 - [ ] Production mode shows friendly error messages
+- [ ] Logging configured for console (dev) and file (production)
+- [ ] All unhandled exceptions logged with context (user, path, stack trace)
+- [ ] Log files rotate daily
+- [ ] Log retention policy configured (30 days)
 
 **Testing Requirements**:
 - [ ] Manual test of each error page
@@ -388,10 +453,42 @@ Create custom CSS and JavaScript for site-wide styling and functionality.
   - Form submission helpers
   - Loading spinner helper
   - Date formatting utilities
+  - CSRF token management for Ajax requests
 - Create `wwwroot/js/api-client.js` for client-side API calls:
   - Wrapper for fetch API
   - Error handling
   - Token management
+  - CSRF token injection in headers
+- Configure CSRF protection in Program.cs:
+  ```csharp
+  services.AddAntiforgery(options => {
+      options.HeaderName = "X-CSRF-TOKEN";
+      options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+  });
+  ```
+- Add CSRF meta tag in _Layout.cshtml:
+  ```html
+  @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+  <meta name="csrf-token" content="@Antiforgery.GetAndStoreTokens(Context).RequestToken" />
+  ```
+- Add CSRF token to all Ajax requests in site.js
+- Configure Content Security Policy (CSP) and security headers:
+  ```csharp
+  app.Use(async (context, next) => {
+      context.Response.Headers.Add("Content-Security-Policy",
+          "default-src 'self'; " +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+          "style-src 'self' 'unsafe-inline'; " +
+          "img-src 'self' data: https:; " +
+          "font-src 'self'; " +
+          "connect-src 'self'; " +
+          "frame-ancestors 'none'");
+      context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
+      context.Response.Headers.Add("X-Frame-Options", "DENY");
+      context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
+      await next();
+  });
+  ```
 - Include libraries in _Layout.cshtml
 
 **Acceptance Criteria**:
@@ -401,6 +498,11 @@ Create custom CSS and JavaScript for site-wide styling and functionality.
 - [ ] Loading indicators show during async operations
 - [ ] All scripts include proper error handling
 - [ ] Code follows JavaScript ES6+ standards
+- [ ] CSRF protection configured and tested
+- [ ] CSRF token automatically added to all Ajax requests
+- [ ] CSP headers configured correctly
+- [ ] Security headers present in all responses
+- [ ] All forms include antiforgery tokens
 
 **Testing Requirements**:
 - [ ] Manual testing of all JavaScript functions
@@ -423,14 +525,25 @@ Create custom CSS and JavaScript for site-wide styling and functionality.
 Configure JWT authentication in the MVC app to validate tokens from cookies.
 
 **Implementation Details**:
-- Update `Program.cs` to add JWT authentication:
-  - Configure JwtBearer authentication scheme
-  - Set token validation parameters (issuer, audience, key)
-  - Configure cookie-based token storage
-- Create custom authentication handler if needed
+- Update `Program.cs` to add JWT authentication with cookie configuration:
+  ```csharp
+  services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+      .AddCookie(options => {
+          options.Cookie.HttpOnly = true;          // Prevent XSS access
+          options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS only
+          options.Cookie.SameSite = SameSiteMode.Strict; // CSRF protection
+          options.ExpireTimeSpan = TimeSpan.FromHours(8);
+          options.SlidingExpiration = true;        // Auto-refresh on activity
+          options.LoginPath = "/Account/Login";
+          options.AccessDeniedPath = "/Account/AccessDenied";
+      });
+  ```
+- Configure JwtBearer authentication scheme
+- Set token validation parameters (issuer, audience, key - must match API settings)
 - Add authorization policies (Admin, User roles)
 - Configure [Authorize] attribute behavior
 - Add middleware to extract JWT from cookie and validate
+- Implement automatic token refresh 5 minutes before expiration
 
 **Acceptance Criteria**:
 - [ ] JWT authentication configured correctly
@@ -674,6 +787,27 @@ Create document create/edit forms with markdown editor and live preview.
   - File input for image upload
   - Preview uploaded images
   - Insert image markdown syntax into content
+  - File size validation (10 MB max per Phase 2 spec)
+  - File type validation (image formats only: PNG, JPG, GIF, WebP)
+  - Progress bar for large uploads
+  - Clear error messages if size/type invalid
+- Configure file upload limits in Program.cs:
+  ```csharp
+  services.Configure<FormOptions>(options =>
+  {
+      options.MultipartBodyLengthLimit = 10 * 1024 * 1024; // 10 MB
+  });
+  ```
+- Add to web.config if using IIS:
+  ```xml
+  <system.webServer>
+    <security>
+      <requestFiltering>
+        <requestLimits maxAllowedContentLength="10485760" /> <!-- 10 MB -->
+      </requestFiltering>
+    </security>
+  </system.webServer>
+  ```
 - Add save/cancel buttons
 - Implement autosave to localStorage (prevent data loss)
 - Client-side validation
@@ -682,6 +816,11 @@ Create document create/edit forms with markdown editor and live preview.
 - [ ] Markdown editor with toolbar buttons
 - [ ] Live preview updates as user types
 - [ ] Image upload works and inserts markdown
+- [ ] File size limit enforced (10 MB max)
+- [ ] File type validation (images only)
+- [ ] Progress bar displayed during upload
+- [ ] Clear error message if file too large
+- [ ] Clear error message if invalid file type
 - [ ] Tag selection/autocomplete functional
 - [ ] Parent document hierarchy selection works
 - [ ] Autosave prevents data loss
@@ -1556,16 +1695,44 @@ Perform comprehensive integration testing of all frontend features with backend 
 **Estimate**: 6 hours
 **Priority**: Medium
 
-**Test Browsers**:
-- Chrome (latest)
-- Firefox (latest)
-- Edge (latest)
-- Safari (latest) - if available
+**Desktop Browsers (Required)**:
+- Chrome: Last 2 versions (currently 120+)
+- Firefox: Last 2 versions (currently 121+)
+- Edge: Last 2 versions (currently 120+)
+- Safari: Last 2 versions (currently 17+) - if macOS available
 
-**Test Devices**:
-- Desktop (1920x1080, 1366x768)
-- Tablet (iPad, Android tablet)
-- Mobile (iPhone, Android phone)
+**Mobile Browsers (Required)**:
+- iOS Safari: iOS 15+
+- Chrome Mobile: Last 2 versions
+- Samsung Internet: Last 2 versions
+
+**Unsupported Browsers**:
+- Internet Explorer 11 - No support
+- Show browser update banner for very old browsers: "For best experience, please update your browser"
+- Core functionality should still work where possible (graceful degradation)
+
+**Test Devices and Resolutions**:
+- Desktop (1920x1080, 1366x768, 1280x720)
+- Tablet (iPad 1024x768, Android tablet 800x1280)
+- Mobile (iPhone 390x844, Android 360x800)
+
+**Browser Compatibility Checklist**:
+- [ ] Layout renders correctly on all supported browsers
+- [ ] JavaScript features work (no console errors)
+- [ ] CSS styles applied correctly (no visual glitches)
+- [ ] Form validation works
+- [ ] Drag-and-drop works (desktop and touch)
+- [ ] Markdown editor functional
+- [ ] Ajax requests succeed
+- [ ] Authentication flow works
+- [ ] Responsive design adapts to screen sizes
+- [ ] Touch gestures work on mobile browsers
+
+**Testing Approach**:
+- Use BrowserStack or similar service for cross-browser testing
+- Test critical user flows on each browser
+- Document any browser-specific issues and workarounds
+- Add polyfills if needed for older browser support
 
 ---
 
@@ -1620,22 +1787,37 @@ Perform comprehensive integration testing of all frontend features with backend 
 ### External Libraries Required
 
 **CSS Frameworks**:
-- Bootstrap 5.3 (already included)
+- Bootstrap 5.3.3 (already included in ASP.NET Core 9.0 template)
 
-**JavaScript Libraries**:
-- jQuery 3.7 (already included)
-- jQuery Validation (already included)
-- Marked.js (markdown rendering)
-- Highlight.js or Prism.js (code syntax highlighting)
-- SortableJS (drag-and-drop)
-- Select2 or Choices.js (enhanced dropdowns) - optional
-- Moment.js or date-fns (date formatting) - optional
+**JavaScript Libraries** (with specific versions):
+- jQuery 3.7.1 (already included in ASP.NET Core template)
+- jQuery Validation 1.19.5 (already included in ASP.NET Core template)
+- Marked.js v11.2.0 (markdown rendering)
+- Highlight.js v11.9.0 (code syntax highlighting)
+- SortableJS v1.15.2 (drag-and-drop for Kanban board)
+- Choices.js v10.2.0 (enhanced dropdowns - selected over Select2 for smaller size and modern API)
+- date-fns v3.3.1 (date formatting - selected over Moment.js for tree-shakable, modern approach)
 
 **Installation**:
 ```bash
-# Download libraries to wwwroot/lib/ or use npm/CDN
-# Configure in _Layout.cshtml
+# Option 1: Download libraries to wwwroot/lib/
+# Download from CDN providers:
+# - Marked.js: https://cdn.jsdelivr.net/npm/marked@11.2.0/
+# - Highlight.js: https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/
+# - SortableJS: https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/
+# - Choices.js: https://cdn.jsdelivr.net/npm/choices.js@10.2.0/
+# - date-fns: https://cdn.jsdelivr.net/npm/date-fns@3.3.1/
+
+# Option 2: Use npm for library management (if desired)
+# npm install marked@11.2.0 highlight.js@11.9.0 sortablejs@1.15.2 choices.js@10.2.0 date-fns@3.3.1
+
+# Configure in _Layout.cshtml with proper script/link tags
 ```
+
+**Library Decision Rationale**:
+- **Choices.js over Select2**: Smaller bundle size (46KB vs 80KB), native-like UX, better mobile support
+- **date-fns over Moment.js**: Tree-shakable (only bundle what you use), modern immutable API, smaller size
+- **Highlight.js**: Wide language support, automatic language detection, smaller than Prism.js for common use cases
 
 ---
 
