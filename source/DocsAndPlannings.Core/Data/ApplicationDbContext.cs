@@ -24,6 +24,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<WorkItemComment> WorkItemComments { get; set; }
     public DbSet<Status> Statuses { get; set; }
     public DbSet<StatusTransition> StatusTransitions { get; set; }
+    public DbSet<Board> Boards { get; set; }
+    public DbSet<BoardColumn> BoardColumns { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,6 +35,7 @@ public class ApplicationDbContext : DbContext
         ConfigureDocumentEntities(modelBuilder);
         ConfigurePlanningEntities(modelBuilder);
         ConfigureStatusEntities(modelBuilder);
+        ConfigureBoardEntities(modelBuilder);
     }
 
     private void ConfigureUserEntities(ModelBuilder modelBuilder)
@@ -311,6 +314,47 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.ToStatus)
                 .WithMany(s => s.TransitionsTo)
                 .HasForeignKey(e => e.ToStatusId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private void ConfigureBoardEntities(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Board>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.UpdatedAt).IsRequired();
+
+            entity.HasIndex(e => e.ProjectId).IsUnique();
+
+            entity.HasOne(e => e.Project)
+                .WithOne()
+                .HasForeignKey<Board>(e => e.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BoardColumn>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OrderIndex).IsRequired();
+            entity.Property(e => e.WIPLimit).IsRequired(false);
+            entity.Property(e => e.IsCollapsed).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.RowVersion).IsRowVersion();
+
+            entity.HasIndex(e => new { e.BoardId, e.StatusId }).IsUnique();
+            entity.HasIndex(e => new { e.BoardId, e.OrderIndex });
+
+            entity.HasOne(e => e.Board)
+                .WithMany(b => b.BoardColumns)
+                .HasForeignKey(e => e.BoardId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Status)
+                .WithMany()
+                .HasForeignKey(e => e.StatusId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }
