@@ -267,25 +267,115 @@ public sealed class BoardService : IBoardService
         };
     }
 
-    public Task<BoardColumnDto> UpdateColumnAsync(
+    public async Task<BoardColumnDto> UpdateColumnAsync(
         int projectId,
         int columnId,
         UpdateBoardColumnRequest request,
         int userId,
         CancellationToken cancellationToken = default)
     {
-        // Implementation in Sprint 2.3
-        throw new NotImplementedException("UpdateColumnAsync will be implemented in Sprint 2.3");
+        if (request is null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        // Get board with ownership check
+        var board = await m_Context.Boards
+            .Include(b => b.Project)
+            .Include(b => b.BoardColumns)
+            .ThenInclude(c => c.Status)
+            .FirstOrDefaultAsync(b => b.ProjectId == projectId, cancellationToken);
+
+        if (board is null)
+        {
+            throw new NotFoundException($"Board for project ID {projectId} not found");
+        }
+
+        // Check ownership
+        if (board.Project.OwnerId != userId)
+        {
+            throw new ForbiddenException("Only the project owner can update board columns");
+        }
+
+        // Find the column
+        var column = board.BoardColumns.FirstOrDefault(c => c.Id == columnId);
+        if (column is null)
+        {
+            throw new NotFoundException($"Column with ID {columnId} not found in this board");
+        }
+
+        // Update column properties
+        column.WIPLimit = request.WIPLimit;
+        column.IsCollapsed = request.IsCollapsed;
+
+        await m_Context.SaveChangesAsync(cancellationToken);
+
+        return new BoardColumnDto
+        {
+            Id = column.Id,
+            BoardId = column.BoardId,
+            StatusId = column.StatusId,
+            StatusName = column.Status.Name,
+            StatusColor = column.Status.Color ?? "#808080",
+            OrderIndex = column.OrderIndex,
+            WIPLimit = column.WIPLimit,
+            IsCollapsed = column.IsCollapsed
+        };
     }
 
-    public Task ReorderColumnsAsync(
+    public async Task ReorderColumnsAsync(
         int projectId,
         ReorderColumnsRequest request,
         int userId,
         CancellationToken cancellationToken = default)
     {
-        // Implementation in Sprint 2.3
-        throw new NotImplementedException("ReorderColumnsAsync will be implemented in Sprint 2.3");
+        if (request is null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        // Get board with ownership check
+        var board = await m_Context.Boards
+            .Include(b => b.Project)
+            .Include(b => b.BoardColumns)
+            .FirstOrDefaultAsync(b => b.ProjectId == projectId, cancellationToken);
+
+        if (board is null)
+        {
+            throw new NotFoundException($"Board for project ID {projectId} not found");
+        }
+
+        // Check ownership
+        if (board.Project.OwnerId != userId)
+        {
+            throw new ForbiddenException("Only the project owner can reorder board columns");
+        }
+
+        // Validate that all column IDs belong to this board
+        var columnIds = request.ColumnIds.ToList();
+        var boardColumnIds = board.BoardColumns.Select(c => c.Id).ToHashSet();
+
+        if (columnIds.Count != boardColumnIds.Count)
+        {
+            throw new BadRequestException($"Column count mismatch: expected {boardColumnIds.Count}, got {columnIds.Count}");
+        }
+
+        foreach (var columnId in columnIds)
+        {
+            if (!boardColumnIds.Contains(columnId))
+            {
+                throw new BadRequestException($"Column with ID {columnId} does not belong to this board");
+            }
+        }
+
+        // Update order indexes
+        for (int i = 0; i < columnIds.Count; i++)
+        {
+            var column = board.BoardColumns.First(c => c.Id == columnIds[i]);
+            column.OrderIndex = i;
+        }
+
+        await m_Context.SaveChangesAsync(cancellationToken);
     }
 
     public Task MoveWorkItemAsync(
