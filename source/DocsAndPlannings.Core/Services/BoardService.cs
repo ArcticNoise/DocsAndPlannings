@@ -163,15 +163,108 @@ public sealed class BoardService : IBoardService
         await m_Context.SaveChangesAsync(cancellationToken);
     }
 
-    public Task<BoardViewDto> GetBoardViewAsync(
+    public async Task<BoardViewDto> GetBoardViewAsync(
         int projectId,
         int[]? epicIds = null,
         int[]? assigneeIds = null,
         string? searchText = null,
         CancellationToken cancellationToken = default)
     {
-        // Implementation in Sprint 2.2
-        throw new NotImplementedException("GetBoardViewAsync will be implemented in Sprint 2.2");
+        // Get board with columns
+        var board = await m_Context.Boards
+            .Include(b => b.BoardColumns)
+            .ThenInclude(c => c.Status)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.ProjectId == projectId, cancellationToken);
+
+        if (board is null)
+        {
+            throw new NotFoundException($"Board for project ID {projectId} not found");
+        }
+
+        // Build work items query
+        var workItemsQuery = m_Context.WorkItems
+            .Include(w => w.Assignee)
+            .Where(w => w.ProjectId == projectId);
+
+        // Apply epic filter
+        if (epicIds != null && epicIds.Length > 0)
+        {
+            workItemsQuery = workItemsQuery.Where(w => w.EpicId.HasValue && epicIds.Contains(w.EpicId.Value));
+        }
+
+        // Apply assignee filter
+        if (assigneeIds != null && assigneeIds.Length > 0)
+        {
+            workItemsQuery = workItemsQuery.Where(w => w.AssigneeId.HasValue && assigneeIds.Contains(w.AssigneeId.Value));
+        }
+
+        // Apply search text filter
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            workItemsQuery = workItemsQuery.Where(w =>
+                w.Key.Contains(searchText) ||
+                w.Summary.Contains(searchText));
+        }
+
+        // Execute query and group by status
+        var workItems = await workItemsQuery
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        var workItemsByStatus = workItems
+            .GroupBy(w => w.StatusId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Build column DTOs
+        var columns = board.BoardColumns
+            .OrderBy(c => c.OrderIndex)
+            .Select(column =>
+            {
+                var columnWorkItems = workItemsByStatus.ContainsKey(column.StatusId)
+                    ? workItemsByStatus[column.StatusId]
+                    : new List<WorkItem>();
+
+                var workItemCards = columnWorkItems
+                    .Select(w => new WorkItemCardDto
+                    {
+                        Id = w.Id,
+                        Key = w.Key,
+                        Summary = w.Summary,
+                        AssigneeName = w.Assignee != null ? $"{w.Assignee.FirstName} {w.Assignee.LastName}" : null,
+                        Type = w.Type,
+                        Priority = w.Priority,
+                        StatusId = w.StatusId,
+                        OrderIndex = null // Will be implemented in Sprint 2.4
+                    })
+                    .ToList();
+
+                return new BoardColumnViewDto
+                {
+                    Id = column.Id,
+                    StatusId = column.StatusId,
+                    StatusName = column.Status.Name,
+                    StatusColor = column.Status.Color ?? "#808080",
+                    OrderIndex = column.OrderIndex,
+                    WIPLimit = column.WIPLimit,
+                    IsCollapsed = column.IsCollapsed,
+                    WorkItems = workItemCards,
+                    ItemCount = workItemCards.Count
+                };
+            })
+            .ToList();
+
+        var totalItems = workItems.Count;
+
+        return new BoardViewDto
+        {
+            BoardId = board.Id,
+            ProjectId = board.ProjectId,
+            Name = board.Name,
+            Description = board.Description,
+            Columns = columns,
+            TotalItems = totalItems
+        };
     }
 
     public Task<BoardColumnDto> UpdateColumnAsync(
