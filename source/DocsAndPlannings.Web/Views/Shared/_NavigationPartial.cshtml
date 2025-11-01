@@ -1,0 +1,44 @@
+@{
+    var controller = ViewContext.RouteData.Values["Controller"]?.ToString() ?? "";
+}
+
+@if (User.Identity?.IsAuthenticated ?? false)
+{
+    <ul class="navbar-nav flex-grow-1">
+        <li class="nav-item">
+            <a class="nav-link @(controller == "Dashboard" ? "active" : "")" asp-controller="Dashboard" asp-action="Index">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(controller == "Documents" ? "active" : "")" asp-controller="Documents" asp-action="Index">
+                <i class="bi bi-file-text"></i> Documents
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(controller == "Projects" ? "active" : "")" asp-controller="Projects" asp-action="Index">
+                <i class="bi bi-folder"></i> Projects
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(controller == "WorkItems" ? "active" : "")" asp-controller="WorkItems" asp-action="Index">
+                <i class="bi bi-list-task"></i> Work Items
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(controller == "Board" ? "active" : "")" asp-controller="Board" asp-action="Index">
+                <i class="bi bi-kanban"></i> Boards
+            </a>
+        </li>
+    </ul>
+}
+else
+{
+    <ul class="navbar-nav flex-grow-1">
+        <li class="nav-item">
+            <a class="nav-link @(controller == "Home" ? "active" : "")" asp-controller="Home" asp-action="Index">
+                <i class="bi bi-house"></i> Home
+            </a>
+        </li>
+    </ul>
+}

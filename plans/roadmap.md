@@ -148,16 +148,19 @@ High-performance ASP.NET web application combining documentation management (Con
 
 ---
 
-## Phase 5: Frontend Development (ASP.NET MVC)
+## Phase 5: Frontend Development (ASP.NET MVC) 🔄 IN PROGRESS
 
-### 5.1 Core UI & Layout
-- [ ] Create shared layout (_Layout.cshtml)
-- [ ] Navigation partial views
+### 5.1 Core UI & Layout 🔄 IN PROGRESS (Sprint 1/5)
+- [x] API Client Service (IApiClient, ApiClient, HttpClient configuration, 8 unit tests) ✅ (2025-11-01)
+- [x] CORS configuration in API project ✅ (2025-11-01)
+- [x] Shared layout (_Layout.cshtml) with Bootstrap 5 ✅ (2025-11-01)
+- [x] Navigation partial views (_NavigationPartial, _LoginPartial) ✅ (2025-11-01)
 - [ ] Main dashboard controller and views
 - [ ] Login/registration controllers and Razor views
 - [ ] Responsive CSS/Bootstrap integration
 - [ ] Client-side validation scripts
 - [ ] Error handling views (404, 500, etc.)
+- [ ] Authentication middleware (JWT, cookie auth)
 
 ### 5.2 Documentation UI (MVC)
 - [ ] DocumentsController with action methods
@@ -225,17 +228,34 @@ High-performance ASP.NET web application combining documentation management (Con
 ---
 
 ## Current Status
-**Phase**: Phase 5 - Frontend Development (ASP.NET MVC) 📋 PLANNED
-**Current Task**: Ready to begin Phase 5.1 - Core UI & Layout
+**Phase**: Phase 5 - Frontend Development (ASP.NET MVC) 🔄 IN PROGRESS
+**Current Sprint**: Sprint 5.1 - Core UI & Layout (Tasks 2/10 completed)
 **Last Updated**: 2025-11-01
 **Branch**: feature/phase-5-frontend-mvc
 
+**Phase 5.1 Progress** 🔄 (2025-11-01):
+- Task 5.1.1: API Client Service ✅ COMPLETED
+  - IApiClient interface with GET, POST, PUT, DELETE, file operations
+  - ApiClient implementation with JWT authentication from cookies
+  - HttpClient configuration with DI and base URL from appsettings
+  - Error handling and JSON serialization
+  - 8 unit tests (all passing) with Moq for HttpClient mocking
+- CORS Configuration ✅ COMPLETED
+  - Configured in API project to allow Web app origins
+  - AllowCredentials for cookie-based authentication
+- Task 5.1.2: Enhanced Shared Layout ✅ COMPLETED
+  - _Layout.cshtml updated with Bootstrap 5 and Bootstrap Icons
+  - _NavigationPartial.cshtml with role-based menu items
+  - _LoginPartial.cshtml with authentication state and user dropdown
+  - Flash message container for notifications
+  - Responsive mobile menu with hamburger toggle
+
 **Phase 5 Planning Complete** ✅ (2025-11-01):
 - Implementation guide created with 29 detailed tasks across 5 sprints
+- Validation report completed - 100% readiness (8 gaps addressed)
 - Estimated duration: 240 hours (6 weeks)
-- Validation report completed - 87.5% readiness
 - Git branch created: feature/phase-5-frontend-mvc
-- Ready to begin implementation
+- Implementation started: 2025-11-01
 
 **Recent Completion**: Phase 4 Kanban Board ✅ (2025-11-01)
 - 125 new tests added for Phase 4 (15 model + 72 service + 28 controller + 5 integration + 13 bug-hunting)

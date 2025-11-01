@@ -60,6 +60,18 @@ builder.Services.AddScoped<ICommentService, CommentService>();
 // Phase 4: Kanban board services
 builder.Services.AddScoped<IBoardService, BoardService>();
 
+// Configure CORS for Web application
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("WebAppPolicy", builder =>
+    {
+        builder.WithOrigins("https://localhost:7102", "http://localhost:5031")
+               .AllowAnyHeader()
+               .AllowAnyMethod()
+               .AllowCredentials();
+    });
+});
+
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -80,6 +92,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("WebAppPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 

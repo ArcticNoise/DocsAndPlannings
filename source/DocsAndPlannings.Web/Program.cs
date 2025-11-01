@@ -1,4 +1,5 @@
 using DocsAndPlannings.Core.Data;
+using DocsAndPlannings.Web.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,6 +8,21 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")
         ?? "Data Source=docsandplannings.db"));
+
+// Register HttpClient for API communication
+builder.Services.AddHttpClient<IApiClient, ApiClient>(client =>
+{
+    string? apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"];
+    if (string.IsNullOrEmpty(apiBaseUrl))
+    {
+        throw new InvalidOperationException("API BaseUrl is not configured in appsettings.json");
+    }
+    client.BaseAddress = new Uri(apiBaseUrl);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
+// Register HttpContextAccessor for accessing HttpContext in services
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllersWithViews();
 
