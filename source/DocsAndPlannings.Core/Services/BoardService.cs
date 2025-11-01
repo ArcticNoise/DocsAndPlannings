@@ -378,15 +378,63 @@ public sealed class BoardService : IBoardService
         await m_Context.SaveChangesAsync(cancellationToken);
     }
 
-    public Task MoveWorkItemAsync(
+    public async Task MoveWorkItemAsync(
         int projectId,
         int workItemId,
         int toStatusId,
         int userId,
         CancellationToken cancellationToken = default)
     {
-        // Implementation in Sprint 2.4
-        throw new NotImplementedException("MoveWorkItemAsync will be implemented in Sprint 2.4");
+        // Verify board exists for the project
+        var board = await m_Context.Boards
+            .Include(b => b.BoardColumns)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.ProjectId == projectId, cancellationToken);
+
+        if (board is null)
+        {
+            throw new NotFoundException($"Board for project ID {projectId} not found");
+        }
+
+        // Verify target status is on the board
+        var targetColumn = board.BoardColumns.FirstOrDefault(c => c.StatusId == toStatusId);
+        if (targetColumn is null)
+        {
+            throw new BadRequestException($"Status with ID {toStatusId} is not available on this board");
+        }
+
+        // Get work item with ownership check
+        var workItem = await m_Context.WorkItems
+            .Include(w => w.Project)
+            .FirstOrDefaultAsync(w => w.Id == workItemId && w.ProjectId == projectId, cancellationToken);
+
+        if (workItem is null)
+        {
+            throw new NotFoundException($"Work item with ID {workItemId} not found in project {projectId}");
+        }
+
+        // Check if work item is already in the target status
+        if (workItem.StatusId == toStatusId)
+        {
+            return; // No-op if already in target status
+        }
+
+        // Validate transition using StatusService
+        var isTransitionAllowed = await m_StatusService.ValidateTransitionAsync(
+            workItem.StatusId,
+            toStatusId,
+            cancellationToken);
+
+        if (!isTransitionAllowed)
+        {
+            throw new BadRequestException($"Transition from status {workItem.StatusId} to status {toStatusId} is not allowed");
+        }
+
+        // Update work item status
+        workItem.StatusId = toStatusId;
+        workItem.UpdatedAt = DateTime.UtcNow;
+
+        await m_Context.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<BoardDto> MapToDtoAsync(int boardId, CancellationToken cancellationToken = default)
