@@ -73,14 +73,14 @@ High-performance ASP.NET web application combining documentation management (Con
 - [x] Task/Bug model and CRUD operations
 - [x] Subtask model and CRUD operations
 - [x] Implement hierarchy (Project → Epic → Task/Bug → Subtask)
-- [ ] Unit tests for planning models (deferred to Phase 6)
+- [x] Unit tests for planning models ✅ COMPLETED (2025-11-01)
 
 ### 3.2 Status Management ✅ COMPLETED (2025-10-31)
 - [x] Implement basic statuses (TODO, IN PROGRESS, DONE, CANCELLED, BACKLOG)
 - [x] Custom status configuration per item type
 - [x] Status transition validation
 - [ ] Status history tracking (deferred to Phase 6)
-- [ ] Unit tests for status management (deferred to Phase 6)
+- [x] Unit tests for status management ✅ COMPLETED (2025-11-01)
 
 ### 3.3 Item Management ✅ COMPLETED (2025-10-31)
 - [x] Unique ID generation (project-based, e.g., PROJ-123)
@@ -90,7 +90,7 @@ High-performance ASP.NET web application combining documentation management (Con
 - [x] Priority field
 - [x] Due date field
 - [x] Comments/activity log
-- [ ] Unit tests for item management (deferred to Phase 6)
+- [x] Unit tests for item management ✅ COMPLETED (2025-11-01)
 
 ### 3.4 REST API Endpoints ✅ COMPLETED (2025-10-31)
 - [x] Projects API (CRUD)
@@ -192,11 +192,18 @@ High-performance ASP.NET web application combining documentation management (Con
 ---
 
 ## Current Status
-**Phase**: Phase 3 - Planning/Tracking Module (COMPLETE ✅)
+**Phase**: Phase 3 - Planning/Tracking Module (COMPLETE WITH TESTS ✅)
 **Current Task**: Ready for Phase 4 - Kanban Board
-**Last Updated**: 2025-10-31
+**Last Updated**: 2025-11-01
 
-**Recent Completion**: Phase 3 Planning/Tracking Module ✅ (2025-10-31)
+**Recent Completion**: Phase 3 Unit Tests ✅ (2025-11-01)
+- 38 new tests added for Phase 3 services
+- StatusService: 29 tests (CRUD, transitions, validation)
+- KeyGenerationService: 9 tests (unique key generation)
+- Total test count: 193 tests (192 passing, 1 skipped)
+- Build: 0 warnings, 0 errors
+
+**Previous Completion**: Phase 3 Planning/Tracking Module ✅ (2025-10-31)
 
 **Phase 3 - Planning/Tracking Module (33 endpoints total)**:
 
